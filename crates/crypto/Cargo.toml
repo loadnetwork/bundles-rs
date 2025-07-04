@@ -1,0 +1,42 @@
+[package]
+name = "crypto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+
+rand.workspace = true
+rand_core.workspace = true
+
+# For Ethereum signing
+k256 = { version = "0.13.4", features = ["ecdsa", "ecdsa-core"] }
+sha3 = "0.10.8"
+hex = "0.4.3"
+
+# For Solana signing
+bs58 = "0.5.1" #  Solana's base58 encoding
+
+# Arweave
+rsa = { version = "0.9", features = ["sha2"] }
+base64 = "0.21"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2.workspace = true
+zeroize = "1.8.1"
+rayon = "1.10.0"
+thiserror = "2.0.12"
+
+[dev-dependencies]
+hex-literal = "1.0.0"
+

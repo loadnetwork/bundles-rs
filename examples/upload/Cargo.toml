@@ -1,0 +1,42 @@
+[package]
+name = "upload"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+# upload
+
+bundles_rs = { path = "../../crates/bundles_rs" }
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+
+# verification & http
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = "1.0"
+anyhow = "1.0"
+
+clap = { version = "4.5", features = ["derive"] }
+hex = "0.4"
+arweave-sdk-rs = "0.0.1"                          # bundle & DataItem parsing + deep-verify
+sha2 = "0.10"                                     # SHA-256
+dotenv = "0.15.0"
+bytes = "1.10.1"
+
+ed25519-dalek = "2.1"
+k256 = "0.13.4"
+rsa = "0.9"
+num-bigint = "0.4"
+base64 = "0.22"
+
+# Avro for tag parsing
+apache-avro = "0.18"
+futures = "0.3.31"
+tracing = "0.1.41"
+bs58 = "0.5.1" #  Solana's base58 encoding
+rand.workspace = true
+rand_core.workspace = true
