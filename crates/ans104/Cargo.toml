@@ -7,5 +7,7 @@ edition = "2024"
 
 # verification & http
 reqwest = { version = "0.12", features = ["json"] }
-serde_json = "1.0"
 anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+serde_json = "1.0"

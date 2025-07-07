@@ -1,5 +1,8 @@
 /// Tags
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+
+//TODO: impl Serialize, Deserialize
 
 const AVRO_SCHEMA: &str = r#"{
   "type": "array",
@@ -12,6 +15,12 @@ const AVRO_SCHEMA: &str = r#"{
     ]
   }
 }"#;
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+struct Tag {
+    pub name: String,
+    pub value: String,
+}
 
 /// Parse tags from raw Avro binary format (without file headers)
 /// This matches the bundler SDK's encoding using strings
