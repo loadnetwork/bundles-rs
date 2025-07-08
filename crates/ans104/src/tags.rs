@@ -17,7 +17,7 @@ const AVRO_SCHEMA: &str = r#"{
 }"#;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-struct Tag {
+pub struct Tag {
     pub name: String,
     pub value: String,
 }
