@@ -3,7 +3,10 @@ use bytes::Bytes;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::tags;
+use crate::{
+    sign,
+    tags::{self, Tag},
+};
 
 //*
 /// DataItem Format
@@ -32,7 +35,7 @@ pub struct DataItem {
     ///
     /// **Encoding:** raw binary  
     /// **Length:** exactly 2 bytes  
-    pub signature_type: [u8; 2],
+    pub signature_type: sign::SignatureType,
 
     /// A cryptographic signature produced by the owner over the rest of the item.
     ///
@@ -44,19 +47,19 @@ pub struct DataItem {
     ///
     /// **Encoding:** raw binary  
     /// **Length:** exactly 512 bytes  
-    pub owner: [u8; 512],
+    pub owner: Vec<u8>,
 
     /// An optional 32-byte address that this item is being sent to.
     ///
     /// **Encoding:** presence byte (0 or 1) + up to 32 raw bytes  
     /// **Length:** 1 + 32 bytes when present  
-    pub target: Option<[u8; 32]>,
+    pub target: Option<Vec<u8>>,
 
     /// An optional 32-byte anchor value (used e.g. to prevent replay attacks).
     ///
     /// **Encoding:** presence byte (0 or 1) + up to 32 raw bytes  
     /// **Length:** 1 + 32 bytes when present  
-    pub anchor: Option<[u8; 32]>,
+    pub anchor: Option<Vec<u8>>,
 
     /// An Avro-encoded array of tag objects.
     ///
@@ -86,4 +89,18 @@ pub struct DataItem {
 pub enum DataItemData {
     Bytes(Vec<u8>),
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>),
+}
+
+impl DataItem {
+    fn new(tags: Vec<Tag>, data: Vec<u8>) -> Self {
+        Self {
+            signature: Default::default(),
+            signature_type: sign::SignatureType::None,
+            owner: Default::default(),
+            target: Default::default(),
+            anchor: Default::default(),
+            tags,
+            data,
+        }
+    }
 }
