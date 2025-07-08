@@ -45,6 +45,7 @@ pub fn encode_tags(tags: &[Tag]) -> Result<Vec<u8>> {
     if tags.is_empty() {
         return Ok(vec![]);
     }
+    validate_tags(tags)?;
 
     let value = apache_avro::to_value(tags)?;
     Ok(to_avro_datum(&TAG_ARRAY_SCHEMA, value)?)
@@ -97,8 +98,8 @@ fn verify_tags_raw_avro(tags: &[u8]) -> Result<usize> {
             cursor += name_len;
 
             // parse value
-            let (value_len, bytes_read) = decode_zigzag_varint(&tags[cursor..])?;
-            cursor += bytes_read;
+            let (value_len, r) = decode_zigzag_varint(&tags[cursor..])?;
+            cursor += r;
             anyhow::ensure!(cursor + value_len <= tags.len(), "value overflow");
             let value = &tags[cursor..cursor + value_len];
             cursor += value_len;
