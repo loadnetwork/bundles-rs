@@ -14,7 +14,19 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"]}
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 
-rand = { version = "0.8", default-features = false, features = ["std", "getrandom"] }
+rand = { version = "0.8", default-features = false, features = [
+  "std",
+  "getrandom",
+] }
 rand_core = "0.6"
+
+# For Ethereum signing
+k256 = { version = "0.13.4", features = ["ecdsa", "ecdsa-core"] }
+sha3 = "0.10.8"
+hex = "0.4.3"
+
+[dev-dependencies]
+hex-literal = "1.0.0"
+
