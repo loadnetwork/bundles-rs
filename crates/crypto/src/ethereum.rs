@@ -27,7 +27,7 @@ impl EthereumSigner {
     }
 
     /// Generate a new key
-    pub fn generate_random() -> Result<Self> {
+    pub fn random() -> Result<Self> {
         let signing_key = SigningKey::random(&mut OsRng);
         Ok(Self { signing_key })
     }
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_ethereum_sign_verify() {
-        let signer = EthereumSigner::generate_random().unwrap();
+        let signer = EthereumSigner::random().unwrap();
         let message = b"Hello, Ethereum!";
 
         let signature = signer.sign(message).unwrap();
