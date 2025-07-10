@@ -6,6 +6,7 @@ use sha3::{Digest, Keccak256};
 
 use crate::signer::{SignatureType, Signer};
 
+#[derive(Clone)]
 pub struct EthereumSigner {
     signing_key: SigningKey,
 }

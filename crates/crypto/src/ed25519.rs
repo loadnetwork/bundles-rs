@@ -4,6 +4,7 @@ use rand::rngs::OsRng;
 
 use crate::signer::{SignatureType, Signer};
 
+#[derive(Clone)]
 pub struct Ed25519Signer {
     signing_key: SigningKey,
 }

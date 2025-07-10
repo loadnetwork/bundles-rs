@@ -27,6 +27,9 @@ k256 = { version = "0.13.4", features = ["ecdsa", "ecdsa-core"] }
 sha3 = "0.10.8"
 hex = "0.4.3"
 
+# For Solana signing
+bs58 = "0.5.1" #  Solana's base58 encoding
+
 [dev-dependencies]
 hex-literal = "1.0.0"
 
