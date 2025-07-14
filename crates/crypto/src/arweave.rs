@@ -1,6 +1,10 @@
 use anyhow::{Result, anyhow};
 use rsa::{
-    pss::{BlindedSigningKey, Pss, VerifyingKey}, sha2::Sha256, signature::{Signer as _, Verifier as _}, traits::{PrivateKeyParts, PublicKeyParts}, RsaPrivateKey, RsaPublicKey
+    pss::{BlindedSigningKey, VerifyingKey}, 
+    sha2::Sha256, 
+    signature::{RandomizedSigner, Verifier as _}, 
+    traits::{PrivateKeyParts, PublicKeyParts}, 
+    RsaPrivateKey, RsaPublicKey
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::{Deserialize, Serialize};
@@ -162,7 +166,7 @@ impl ArweaveSigner {
     pub fn owner_bytes(&self) -> [u8; 512] {
         let mut out = [0u8; 512];
         let n_bytes = self.public_key.n().to_bytes_be();
-        let start = 512.saturating_sub(n_bytes.len());
+        let start = 512_usize.saturating_sub(n_bytes.len());
         out[start..].copy_from_slice(&n_bytes);
         out
     }
@@ -195,7 +199,8 @@ impl Signer for ArweaveSigner {
             .ok_or_else(|| anyhow!("No private key available for signing"))?;
 
         let signing_key = Self::create_signing_key(private_key)?;
-        let signature = signing_key.sign(message);
+        let mut rng = OsRng;
+        let signature = signing_key.sign_with_rng(&mut rng, message);
         
         // Ensure exactly 512 bytes
         let sig_bytes = signature.to_bytes();
@@ -223,5 +228,68 @@ impl Signer for ArweaveSigner {
         let sig = rsa::pss::Signature::try_from(signature)?;
         
         Ok(verifying_key.verify(message, &sig).is_ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arweave_sign_verify() {
+        let signer = ArweaveSigner::random().unwrap();
+        let message = b"Hello, Arweave!";
+
+        let signature = signer.sign(message).unwrap();
+        assert_eq!(signature.len(), 512);
+
+        let public_key = signer.public_key();
+        assert_eq!(public_key.len(), 512);
+
+        assert!(signer.verify(message, &signature).unwrap());
+        assert!(!signer.verify(b"Wrong message", &signature).unwrap());
+    }
+
+    #[test]
+    fn test_jwk_roundtrip() {
+        let signer1 = ArweaveSigner::random().unwrap();
+        let jwk = signer1.to_jwk().unwrap();
+        let signer2 = ArweaveSigner::from_jwk(&jwk).unwrap();
+
+        // Should have same public keys
+        assert_eq!(signer1.public_key(), signer2.public_key());
+        assert_eq!(signer1.address(), signer2.address());
+
+        // Test signing
+        let message = b"Test message";
+        let sig1 = signer1.sign(message).unwrap();
+        assert!(signer2.verify(message, &sig1).unwrap());
+    }
+
+    #[test]
+    fn test_arweave_address() {
+        let signer = ArweaveSigner::random().unwrap();
+        let address = signer.address();
+        
+        // Arweave addresses are base64url encoded SHA-256 hashes
+        assert!(!address.contains('+'));
+        assert!(!address.contains('/'));
+        assert!(!address.contains('='));
+    }
+
+    #[test]
+    fn test_owner_bytes_padding() {
+        let signer = ArweaveSigner::random().unwrap();
+        let owner = signer.owner_bytes();
+        
+        assert_eq!(owner.len(), 512);
+        
+        // Check that it's properly padded (starts with zeros if needed)
+        let n_bytes = signer.public_key.n().to_bytes_be();
+        if n_bytes.len() < 512 {
+            for i in 0..(512 - n_bytes.len()) {
+                assert_eq!(owner[i], 0, "Padding should be zeros");
+            }
+        }
     }
 }
