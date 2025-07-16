@@ -1,15 +1,15 @@
 use anyhow::{Result, anyhow};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use rand::rngs::OsRng;
 use rsa::{
-    pss::{BlindedSigningKey, VerifyingKey}, 
-    sha2::Sha256, 
-    signature::{RandomizedSigner, Verifier as _}, 
-    traits::{PrivateKeyParts, PublicKeyParts}, 
-    RsaPrivateKey, RsaPublicKey
+    RsaPrivateKey, RsaPublicKey,
+    pss::{BlindedSigningKey, VerifyingKey},
+    sha2::Sha256,
+    signature::{RandomizedSigner, SignatureEncoding, Verifier as _},
+    traits::{PrivateKeyParts, PublicKeyParts},
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use rand::rngs::OsRng;
 
 use crate::signer::{SignatureType, Signer};
 
@@ -42,17 +42,11 @@ pub struct ArweaveSigner {
 impl ArweaveSigner {
     pub fn new(private_key: RsaPrivateKey) -> Self {
         let public_key = RsaPublicKey::from(&private_key);
-        Self {
-            private_key: Some(private_key),
-            public_key,
-        }
+        Self { private_key: Some(private_key), public_key }
     }
 
     pub fn from_public_key(public_key: RsaPublicKey) -> Self {
-        Self {
-            private_key: None,
-            public_key,
-        }
+        Self { private_key: None, public_key }
     }
 
     pub fn random() -> Result<Self> {
@@ -79,21 +73,14 @@ impl ArweaveSigner {
             let q = URL_SAFE_NO_PAD.decode(q)?;
 
             let d_biguint = rsa::BigUint::from_bytes_be(&d);
-            let primes = vec![
-                rsa::BigUint::from_bytes_be(&p),
-                rsa::BigUint::from_bytes_be(&q),
-            ];
+            let primes = vec![rsa::BigUint::from_bytes_be(&p), rsa::BigUint::from_bytes_be(&q)];
 
-            let mut private_key = RsaPrivateKey::from_components(
-                n_biguint,
-                e_biguint,
-                d_biguint,
-                primes,
-            )?;
-            
+            let mut private_key =
+                RsaPrivateKey::from_components(n_biguint, e_biguint, d_biguint, primes)?;
+
             // Validate the key
             private_key.validate()?;
-            
+
             // Precompute CRT parameters if missing
             if jwk.dp.is_none() || jwk.dq.is_none() || jwk.qi.is_none() {
                 private_key.precompute()?;
@@ -123,18 +110,15 @@ impl ArweaveSigner {
 
         if let Some(private_key) = &self.private_key {
             let d = URL_SAFE_NO_PAD.encode(private_key.d().to_bytes_be());
-            
+
             let primes = private_key.primes();
             let p = URL_SAFE_NO_PAD.encode(primes[0].to_bytes_be());
             let q = URL_SAFE_NO_PAD.encode(primes[1].to_bytes_be());
 
             // Note: qi is unsigned in RFC 7517
-            let dp = private_key.dp()
-                .map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be()));
-            let dq = private_key.dq()
-                .map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be()));
-            let qi = private_key.qinv()
-                .map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be()));
+            let dp = private_key.dp().map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be()));
+            let dq = private_key.dq().map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be()));
+            let qi = private_key.qinv().map(|v| URL_SAFE_NO_PAD.encode(v.to_bytes_be().1));
 
             Ok(JwkAuth {
                 kty: "RSA".to_string(),
@@ -179,35 +163,31 @@ impl ArweaveSigner {
     }
 
     fn create_signing_key(private_key: &RsaPrivateKey) -> Result<BlindedSigningKey<Sha256>> {
-        Ok(BlindedSigningKey::<Sha256>::new_with_salt_len(
-            private_key.clone(),
-            SALT_LEN,
-        ))
+        Ok(BlindedSigningKey::<Sha256>::new_with_salt_len(private_key.clone(), SALT_LEN))
     }
 
     fn create_verifying_key(public_key: &RsaPublicKey) -> Result<VerifyingKey<Sha256>> {
-        Ok(VerifyingKey::<Sha256>::new_with_salt_len(
-            public_key.clone(),
-            SALT_LEN,
-        ))
+        Ok(VerifyingKey::<Sha256>::new_with_salt_len(public_key.clone(), SALT_LEN))
     }
 }
 
 impl Signer for ArweaveSigner {
     fn sign(&self, message: &[u8]) -> Result<Vec<u8>> {
-        let private_key = self.private_key.as_ref()
+        let private_key = self
+            .private_key
+            .as_ref()
             .ok_or_else(|| anyhow!("No private key available for signing"))?;
 
         let signing_key = Self::create_signing_key(private_key)?;
         let mut rng = OsRng;
         let signature = signing_key.sign_with_rng(&mut rng, message);
-        
+
         // Ensure exactly 512 bytes
         let sig_bytes = signature.to_bytes();
         if sig_bytes.len() != 512 {
             return Err(anyhow!("Invalid signature length: expected 512, got {}", sig_bytes.len()));
         }
-        
+
         Ok(sig_bytes.to_vec())
     }
 
@@ -226,7 +206,7 @@ impl Signer for ArweaveSigner {
 
         let verifying_key = Self::create_verifying_key(&self.public_key)?;
         let sig = rsa::pss::Signature::try_from(signature)?;
-        
+
         Ok(verifying_key.verify(message, &sig).is_ok())
     }
 }
@@ -270,7 +250,7 @@ mod tests {
     fn test_arweave_address() {
         let signer = ArweaveSigner::random().unwrap();
         let address = signer.address();
-        
+
         // Arweave addresses are base64url encoded SHA-256 hashes
         assert!(!address.contains('+'));
         assert!(!address.contains('/'));
@@ -281,9 +261,9 @@ mod tests {
     fn test_owner_bytes_padding() {
         let signer = ArweaveSigner::random().unwrap();
         let owner = signer.owner_bytes();
-        
+
         assert_eq!(owner.len(), 512);
-        
+
         // Check that it's properly padded (starts with zeros if needed)
         let n_bytes = signer.public_key.n().to_bytes_be();
         if n_bytes.len() < 512 {

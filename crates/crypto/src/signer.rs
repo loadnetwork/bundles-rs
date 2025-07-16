@@ -1,7 +1,5 @@
 use anyhow::Result;
 
-use std::array::TryFromSliceError;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u16)]
 pub enum SignatureType {
