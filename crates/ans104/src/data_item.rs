@@ -10,6 +10,9 @@ use crate::{
     tags::Tag,
 };
 use crypto::signer::{SignatureType, Signer};
+
+use std::io::Read;
+
 /// Binary‑encoded data‑item.
 #[derive(Debug, Clone)]
 pub struct DataItem {
@@ -82,7 +85,7 @@ impl DataItem {
 
         let signature_type = self.signature_type.clone() as u16;
         let signature_type = signature_type.to_string();
-        
+
         let dh = DeepHash::List(vec![
             DeepHash::Blob(b"dataitem"),
             DeepHash::Blob(b"1"),
@@ -133,11 +136,12 @@ impl DataItem {
             "invalid owner length"
         );
 
-        // 2. cryptographic verification (if we have an implementation for it)
+        // 2. cryptographic verification (if supported)
         let message = self.signing_message();
-        if let Some(verifier) = crypto::signer::verifier_for(&self.signature_type, &self.owner) {
-            anyhow::ensure!(verifier(&message, &self.signature)?, "bad signature");
-        }
+        anyhow::ensure!(
+            self.signature_type.verify(&self.owner, &message, &self.signature)?,
+            "bad signature"
+        );
 
         // 3. id check (sha‑256(sig) == id) for Arweave compatibility
         anyhow::ensure!(self.id() == Sha256::digest(&self.signature)[..], "id mismatch");
@@ -214,8 +218,6 @@ impl DataItem {
 
     /// Parse a binary data‑item (zero‑allocation where possible).
     pub fn from_bytes(mut b: &[u8]) -> Result<Self> {
-        use std::io::Cursor;
-
         let signature_type = SignatureType::from_u16(b.read_u16::<byteorder::BigEndian>()?);
 
         let mut sig = vec![0u8; signature_type.signature_len()];
@@ -250,10 +252,13 @@ impl DataItem {
         let tag_count = b.read_u64::<LittleEndian>()? as usize;
         let tag_bytes = b.read_u64::<LittleEndian>()? as usize;
         let mut tagbuf = vec![0u8; tag_bytes];
+
         b.read_exact(&mut tagbuf)?;
-        tags::validate_tags(&tagbuf)?;
+        let parsed = tags::verify_tags_raw_avro(&tagbuf)?;
+        anyhow::ensure!(parsed == tag_count, "tag count mismatch");
+
         let tags = tags::decode_tags(&tagbuf)?;
-        anyhow::ensure!(tag_count == tags.len(), "tag count mismatch");
+        tags::validate_tags(&tags)?; // NEW – validate the decoded Vec<Tag>
 
         // data (whatever remains)
         let mut data = Vec::new();
@@ -277,7 +282,7 @@ mod tests {
     #[test]
     fn roundtrip() {
         let signer = EthereumSigner::random().unwrap();
-        let tags = vec![Tag::new("Content-Type", "text/plain").unwrap()];
+        let tags = vec![Tag::new("Content-Type", "text/plain")];
         let payload = b"hello ans104".to_vec();
 
         let item = DataItem::build_and_sign(&signer, None, None, tags, payload).expect("signed OK");

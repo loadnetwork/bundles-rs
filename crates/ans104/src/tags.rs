@@ -76,7 +76,7 @@ pub fn validate_tags(tags: &[Tag]) -> Result<()> {
 
 /// Parse tags from raw Avro binary format (without file headers)
 /// Returns number of tags parsed, and ensures ANS-104 constraints.
-fn verify_tags_raw_avro(tags: &[u8]) -> Result<usize> {
+pub fn verify_tags_raw_avro(tags: &[u8]) -> Result<usize> {
     if tags.is_empty() {
         return Ok(0);
     }

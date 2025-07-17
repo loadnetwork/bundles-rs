@@ -64,7 +64,7 @@ impl EthereumSigner {
 
     /// Create Ethereum signed message hash
     /// Following the format: "\x19Ethereum Signed Message:\n" + len(message) + message
-    fn eth_message_hash(message: &[u8]) -> [u8; 32] {
+    pub fn eth_message_hash(message: &[u8]) -> [u8; 32] {
         let prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
         let mut hasher = Keccak256::new();
         hasher.update(prefix.as_bytes());
