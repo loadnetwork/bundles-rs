@@ -80,10 +80,13 @@ impl DataItem {
         };
         let tags_bytes = tags::encode_tags(&self.tags).expect("tags already validated");
 
+        let signature_type = self.signature_type.clone() as u16;
+        let signature_type = signature_type.to_string();
+        
         let dh = DeepHash::List(vec![
             DeepHash::Blob(b"dataitem"),
             DeepHash::Blob(b"1"),
-            DeepHash::Blob(self.signature_type.clone() as u16 .to_string().as_bytes()),
+            DeepHash::Blob(&signature_type.as_bytes()),
             DeepHash::Blob(&self.owner),
             DeepHash::Blob(&target_bytes),
             DeepHash::Blob(&anchor_bytes),
@@ -248,7 +251,7 @@ impl DataItem {
         let tag_bytes = b.read_u64::<LittleEndian>()? as usize;
         let mut tagbuf = vec![0u8; tag_bytes];
         b.read_exact(&mut tagbuf)?;
-        tags::verify_tags_raw_avro(&tagbuf)?;
+        tags::validate_tags(&tagbuf)?;
         let tags = tags::decode_tags(&tagbuf)?;
         anyhow::ensure!(tag_count == tags.len(), "tag count mismatch");
 
