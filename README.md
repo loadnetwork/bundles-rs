@@ -14,10 +14,11 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 # main library
-bundles_rs = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" }
+bundles_rs = { git = "https://github.com/loadnetwork/bundles-rs", branch = "main" }
 
 # use individual crates
-ans104 = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" }
+# or use branch/tag/rev -- we recommend checking and using the last client version
+ans104 = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" } 
 crypto = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" }
 ```
 ### Dev setup
@@ -237,7 +238,6 @@ async fn upload_to_turbo(item: &DataItem) -> Result<String, Box<dyn std::error::
     }
 }
 ```
-
 For fully detailed dataitem upload example, checkout this [example](./examples/upload/).
 
 ## License
