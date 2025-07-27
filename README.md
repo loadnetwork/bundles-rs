@@ -5,7 +5,7 @@
 </p>
 
 ## About
-A Rust SDK for creating, signing, and managing [ANS-104 dataitems](https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md).
+A Rust SDK for creating, signing, managing and posting [ANS-104 dataitems](https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md).
 
 ## Installation
 
@@ -46,8 +46,8 @@ This ANS-104 dataitems client fully implements the ANS-104 specification as-is
 | Constraint | bundles-rs | [Spec](https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md) | [arbundles js](https://github.com/DHA-Team/arbundles) | [HyperBEAM ar_bundles](https://github.com/permaweb/HyperBEAM/blob/edge/src/ar_bundles.erl) |
 |:------------:|:-------:|:------:|:------------:|:-----------:|
 | Maximum tags per data item | <= 128 tags | <= 128 tags | <= 128 tags | No max tags | 
-| Tag name max size | 1024 bytes | 1024 bytes | all KEYS+VALS <= 4096 bytes | Can have empty strings | Key+Val <=4 4096 bytes |
-| Tag value max size | 3072 bytes | 3072 bytes | Can have empty strings | Val <= 3072 bytes | Can have empty strings |
+| Tag name max size | 1024 bytes | 1024 bytes | all keys + vals <= 4096 bytes | Can have empty strings | key + val <= 4096 bytes |
+| Tag value max size | 3072 bytes | 3072 bytes | Can have empty strings | val <= 3072 bytes | Can have empty strings |
 | Empty names/values | non empty strings | non empty strings | Can have empty strings | Can have empty strings | + verify that HB never spawned > 4096 bytes |
 
 > Special thanks for [@nikooo777](https://github.com/nikooo777) for compiling this list. `bundles-rs` has been added to the compiled list.
@@ -81,8 +81,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let item = DataItem::build_and_sign(&signer, None, None, tags, data)?;
     
     // get the dataitem id
-    let id = hex::encode(item.id());
-    println!("dataitem hex id: {}", id);
+    let id = item.arweave_id();
+    println!("dataitem id: {}", id);
     
     // serialize for upload
     let bytes = item.to_bytes()?;
@@ -108,36 +108,53 @@ item.sign(&signer)?;
 
 ### Working with signers
 
+***N.B: use random signer generation for testing purposes only***
 
-### Ethereum Signer
+#### Arweave Signer
+
+```rust
+use bundles_rs::crypto::arweave::ArweaveSigner;
+
+let signer = ArweaveSigner::from_jwk_file("wallet.json")?;
+
+// from stringified JWK
+let jwk_json = r#"{"kty":"RSA","n":"...","e":"AQAB","d":"..."}"#;
+let signer = ArweaveSigner::from_jwk_str(jwk_json)?;
+
+// random
+let signer = ArweaveSigner::random()?;
+
+// Arweave address
+let address = signer.address();
+println!("Arweave address: {}", address);
+```
+
+#### Ethereum Signer
 
 ```rust
 use bundles_rs::crypto::ethereum::EthereumSigner;
 
-// Generate random key
+// generate random key
 let signer = EthereumSigner::random()?;
 
-// From private key bytes
+// or from private key bytes
 let private_key = hex::decode("your_private_key_hex")?;
 let signer = EthereumSigner::from_bytes(&private_key)?;
 
-// Get Ethereum address
+// EOA
 let address = signer.address_string();
 println!("Ethereum address: {}", address);
 ```
 
-### Solana Signer
+#### Solana Signer
 
 ```rust
 use bundles_rs::crypto::solana::SolanaSigner;
-
-// Generate random keypair
+// random
 let signer = SolanaSigner::random();
-
-// From Base58 private key (like solana-keygen)
+// pk
 let signer = SolanaSigner::from_base58("your_base58_private_key")?;
-
-// From 32-byte secret
+// from secret bytes
 let secret = [0u8; 32]; // your secret bytes
 let signer = SolanaSigner::from_secret_bytes(&secret)?;
 
@@ -146,41 +163,57 @@ let address = signer.address();
 println!("Solana address: {}", address);
 ```
 
-### Ed25519Core Signer
+#### Ed25519Core Signer
 
 ```rust
 use bundles_rs::crypto::ed25519::Ed25519Core;
 
-// Generate random
+// random
 let signer = Ed25519Core::random();
-
-// From seed bytes
+// from seed bytes
 let seed = [0u8; 32];
 let signer = Ed25519Core::from_secret_bytes(&seed)?;
 ```
 
 ### Verification
 
-### Manual
+#### Manual
 
 ```rust
-// Verify signature and structure
+// verify signature and structure
 item.verify()?;
 
-// Manual verification steps
+// manual verification steps
 assert_eq!(item.signature.len(), item.signature_type.signature_len());
 assert_eq!(item.owner.len(), item.signature_type.owner_len());
 ```
 
-### With Signer
+#### With Signer
 
 ```rust
+use bundles_rs::crypto::signer::Signer;
+
 let message = item.signing_message();
 let is_valid = signer.verify(&message, &item.signature)?;
 assert!(is_valid);
 ```
 
-### Upload to Bundling services (e.g. Turbo)
+### Deep hash
+
+```rust
+use bundles_rs::ans104::deep_hash::{DeepHash, deep_hash_sync};
+
+let data = b"custom data";
+let hash_structure = DeepHash::List(vec![
+    DeepHash::Blob(b"custom"),
+    DeepHash::Blob(data),
+]);
+
+let hash = deep_hash_sync(&hash_structure);
+println!("Deep hash hex: {}", hex::encode(hash));
+```
+
+### Upload to Bundling services (e.g. [Turbo](https://ardrive.io/turbo-bundler))
 
 ```rust
 use reqwest::Client;
@@ -206,3 +239,15 @@ async fn upload_to_turbo(item: &DataItem) -> Result<String, Box<dyn std::error::
 ```
 
 For fully detailed dataitem upload example, checkout this [example](./examples/upload/).
+
+## License
+
+Licensed at your option under either of:
+ * [Apache License, Version 2.0](LICENSE-APACHE)
+ * [MIT License](LICENSE-MIT)
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
