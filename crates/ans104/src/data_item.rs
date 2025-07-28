@@ -3,6 +3,7 @@
 use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use sha2::{Digest, Sha256};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 
 use crate::{
     deep_hash::{DeepHash, deep_hash_sync},
@@ -142,6 +143,10 @@ impl DataItem {
     pub fn id(&self) -> [u8; 32] {
         Sha256::digest(&self.signature).into()
     }
+
+    pub fn arweave_id(&self) -> String {
+        URL_SAFE_NO_PAD.encode(self.id())
+    }
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         self.verify()?;
 
@@ -261,5 +266,7 @@ mod tests {
         let back = DataItem::from_bytes(&bytes).expect("parsed");
         assert_eq!(item.id(), back.id());
         assert_eq!(item.data, back.data);
+        assert_eq!(item.arweave_id(), URL_SAFE_NO_PAD.encode(item.id()));
+        assert_eq!(item.arweave_id().len(), 43);
     }
 }

@@ -4,10 +4,10 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
-authors = ["Bunldes-RS Contributors"]
+authors = ["Load Network"]
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/loadnetwork/bundles-rs"
 repository = "https://github.com/loadnetwork/bundles-rs"
@@ -47,6 +47,7 @@ lazy_static = "1.5.0"
 apache-avro = "0.19.0"
 once_cell = "1.21.3"
 sha2 = "0.10"
+base64 = "0.22.1"
 
 
 rand = { version = "0.8", features = [
