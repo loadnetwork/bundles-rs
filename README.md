@@ -7,6 +7,9 @@
 ## About
 A Rust SDK for creating, signing, managing and posting [ANS-104 dataitems](https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md).
 
+> Warning: this repository is actively under development and could have breaking changes until reaching full API compatibility in v1.0.0.
+
+
 ## Installation
 
 Add to your `Cargo.toml`:
