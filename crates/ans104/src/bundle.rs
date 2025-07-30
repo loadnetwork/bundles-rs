@@ -1,6 +1,6 @@
 use crate::data_item::DataItem;
 
 #[derive(Debug, Clone)]
-struct Bundle {
-    items: Vec<DataItem>,
+pub struct Bundle {
+    pub items: Vec<DataItem>
 }
