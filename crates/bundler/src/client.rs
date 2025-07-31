@@ -1,5 +1,5 @@
 use crate::{
-    api::{BundlerInfoResponse, SendTransactionResponse},
+    api::{BundlerInfoResponse, BytePriceWincResponse, SendTransactionResponse, get_payment_url},
     token::token_ticker,
 };
 use ans104::data_item::DataItem;
@@ -19,12 +19,18 @@ pub struct BundlerClient {
     pub payment_url: Option<String>,
     /// HTTP client for bundling service requests.
     pub http_client: Option<Client>,
-    _is_turbo: bool
+    /// Internal flag for Turbo distinction
+    pub(crate) _is_turbo: bool,
 }
 
 impl Default for BundlerClient {
     fn default() -> Self {
-        Self { url: Some(DEFAULT_BUNDLER_URL.to_string()), http_client: None, payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()), _is_turbo: true }
+        Self {
+            url: Some(DEFAULT_BUNDLER_URL.to_string()),
+            http_client: None,
+            payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
+            _is_turbo: true,
+        }
     }
 }
 
@@ -53,8 +59,11 @@ impl BundlerClient {
 
         // check turbo's payment url
         if self._is_turbo {
-            let _payment_url = self.clone().payment_url.ok_or_else(|| "turbo payment url not provided".to_string())
-            .map_err(|e| anyhow!(e))?;
+            let _payment_url = self
+                .clone()
+                .payment_url
+                .ok_or_else(|| "turbo payment url not provided".to_string())
+                .map_err(|e| anyhow!(e))?;
         }
 
         let client = ClientBuilder::new().build()?;
@@ -107,6 +116,25 @@ impl BundlerClient {
             Err(anyhow!(request.status().to_string()))
         }
     }
+    /// Get the current amount of winc it will cost to upload a given byte count worth of data items
+    pub async fn bytes_price(self, byte_count: u64) -> Result<BytePriceWincResponse, Error> {
+        let payment_url = get_payment_url(&self)?;
+
+        let request = self
+            .http_client
+            .ok_or("http client error")
+            .map_err(|e| anyhow!(e.to_string()))?
+            .get(format!("{}/v1/price/bytes/{}", payment_url, byte_count))
+            .send()
+            .await?;
+
+        if request.status().is_success() {
+            let price: BytePriceWincResponse = request.json().await?;
+            Ok(price)
+        } else {
+            Err(anyhow!(request.status().to_string()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -143,5 +171,13 @@ mod tests {
         let info = client.info().await.unwrap();
         println!("{:?}", info);
         assert_eq!(info.gateway, "https://arweave.net");
+    }
+
+    #[tokio::test]
+    async fn test_turbo_bytes_price_winc() {
+        let client = BundlerClient::turbo().build().unwrap();
+        let price = client.bytes_price(99999).await.unwrap();
+        println!("{:?}", price);
+        assert_ne!(price.winc, "0".to_string());
     }
 }
