@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Response from a successful upload transaction upload to a bundler service.
 /// The API response structure is according to Turbo's bundler https://upload.ardrive.io/api-docs
@@ -25,4 +26,18 @@ pub struct SendTransactionResponse {
     pub signature: String,
     /// DataItem owner, signer
     pub owner: String,
+}
+
+/// Response of the /info endpoint of the bundling service.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BundlerInfoResponse {
+    /// Bundler version
+    pub version: String,
+    /// Bundler addresses list
+    pub addresses: HashMap<String, String>,
+    /// Bundler's gateway
+    pub gateway: String,
+    /// Bundler's dataitems size complete cost subsidizing
+    pub free_upload_limit_bytes: u64,
 }

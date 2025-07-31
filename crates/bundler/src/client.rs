@@ -1,12 +1,17 @@
-use crate::{api::SendTransactionResponse, token::token_ticker};
+use crate::{
+    api::{BundlerInfoResponse, SendTransactionResponse},
+    token::token_ticker,
+};
 use ans104::data_item::DataItem;
 use anyhow::{Error, anyhow};
 use reqwest::{Client, ClientBuilder};
 
+pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io";
+
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Debug, Clone)]
 pub struct BundlerClient {
-    /// The base URL of the bundling service, defaults to "https://upload.ardrive.io".
+    /// The base URL of the bundling service, defaults to DEFAULT_BUNDLER_URL.
     pub url: Option<String>,
     /// HTTP client for bundling service requests.
     pub http_client: Option<Client>,
@@ -14,7 +19,7 @@ pub struct BundlerClient {
 
 impl Default for BundlerClient {
     fn default() -> Self {
-        Self { url: Some("https://upload.ardrive.io".to_string()), http_client: None }
+        Self { url: Some(DEFAULT_BUNDLER_URL.to_string()), http_client: None }
     }
 }
 
@@ -51,7 +56,11 @@ impl BundlerClient {
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
-            .post(format!("{}/v1/tx/{}", self.url.unwrap(), token))
+            .post(format!(
+                "{}/v1/tx/{}",
+                self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
+                token
+            ))
             .header("Content-Type", "application/octet-stream")
             .body(signed_dataitem.to_bytes()?)
             .send()
@@ -62,6 +71,23 @@ impl BundlerClient {
             Ok(tx)
         } else {
             Err(anyhow!(response.status().to_string()))
+        }
+    }
+    /// Get the public info of the bundling service.
+    pub async fn info(self) -> Result<BundlerInfoResponse, Error> {
+        let request = self
+            .http_client
+            .ok_or("http client error")
+            .map_err(|e| anyhow!(e.to_string()))?
+            .get(format!("{}/info", self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string())))
+            .send()
+            .await?;
+
+        if request.status().is_success() {
+            let info: BundlerInfoResponse = request.json().await?;
+            Ok(info)
+        } else {
+            Err(anyhow!(request.status().to_string()))
         }
     }
 }
@@ -83,5 +109,14 @@ mod tests {
 
         let tx = client.send_transaction(dataitem).await.unwrap();
         println!("tx: {:?}", tx);
+        assert_eq!(tx.id.len(), 43);
+    }
+
+    #[tokio::test]
+    async fn test_default_and_info() {
+        let client = BundlerClient::default().build().unwrap();
+        let info = client.info().await.unwrap();
+        println!("{:?}", info);
+        assert_eq!(info.gateway, "https://arweave.net");
     }
 }
