@@ -1,7 +1,7 @@
 use ans104::data_item::DataItem;
 use anyhow::{anyhow, Error};
 use reqwest::{Client, ClientBuilder};
-use crate::token::token_ticker;
+use crate::{api_resp::SendTransactionResponse, token::token_ticker};
 
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ impl BundlerClient {
         Ok(self)
     }
 
-    pub async fn send_transaction(self, signed_dataitem: DataItem) -> Result<String, Error> {
+    pub async fn send_transaction(self, signed_dataitem: DataItem) -> Result<SendTransactionResponse, Error> {
 
         let token = token_ticker(signed_dataitem.signature_type).ok_or("error invalid signature type").map_err(|e| anyhow!((e.to_string())))?;
         let response = self.http_client.ok_or_else(|| "http client error").map_err(|e| anyhow!(e.to_string()))?
@@ -39,8 +39,8 @@ impl BundlerClient {
             .await?;
         
         if response.status().is_success() {
-            let tx_id = response.text().await?;
-            Ok(tx_id)
+            let tx: SendTransactionResponse = response.json().await?;
+            Ok(tx)
         } else {
             Err(anyhow!(response.status().to_string()))
         }
@@ -61,7 +61,7 @@ mod tests {
         let tags = vec![Tag::new("content-type", "text/plain")];
         let dataitem = DataItem::build_and_sign(&signer, None, None, tags, "hello world".as_bytes().to_vec()).unwrap();
 
-        let txid = client.send_transaction(dataitem).await.unwrap();
-        println!("txid: {}", txid);
+        let tx = client.send_transaction(dataitem).await.unwrap();
+        println!("tx: {:?}", tx);
     }
 }
