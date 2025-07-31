@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 ans104 = { path = "../ans104" }
 crypto = { path = "../crypto" }
+bundler = { path = "../bundler" }
