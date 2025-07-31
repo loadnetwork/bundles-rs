@@ -1,5 +1,8 @@
 use crate::{
-    api::{BundlerInfoResponse, BytePriceWincResponse, SendTransactionResponse, get_payment_url},
+    api::{
+        BundlerInfoResponse, BytePriceWincResponse, RatesResponse, SendTransactionResponse,
+        get_payment_url,
+    },
     token::token_ticker,
 };
 use ans104::data_item::DataItem;
@@ -135,6 +138,30 @@ impl BundlerClient {
             Err(anyhow!(request.status().to_string()))
         }
     }
+
+    /// TURBO ONLY
+    /// Get the supported fiat currency conversion rates for 1GB of storage based on current market
+    /// prices.
+    pub async fn get_rates(self) -> Result<RatesResponse, Error> {
+        if !self._is_turbo {
+            return Ok(RatesResponse::default());
+        }
+
+        let request = self
+            .http_client
+            .ok_or("http client error")
+            .map_err(|e| anyhow!(e.to_string()))?
+            .get(format!("{}/v1/rates", DEFAULT_TURBO_PAYMENT_URL))
+            .send()
+            .await?;
+
+        if request.status().is_success() {
+            let rates: RatesResponse = request.json().await?;
+            Ok(rates)
+        } else {
+            Err(anyhow!(request.status().to_string()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +206,13 @@ mod tests {
         let price = client.bytes_price(99999).await.unwrap();
         println!("{:?}", price);
         assert_ne!(price.winc, "0".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_turbo_rates() {
+        let client = BundlerClient::turbo().build().unwrap();
+        let rates = client.get_rates().await.unwrap();
+        println!("{:?}", rates);
+        assert_ne!(rates.winc, "0".to_string());
     }
 }

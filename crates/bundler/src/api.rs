@@ -55,8 +55,8 @@ pub struct BytePriceWincResponse {
     pub adjustments: Vec<Adjustment>,
 }
 
-/// Adjustment structure for BytePriceWincResponse
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Adjustment structure used within Turbo response schemas
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Adjustment {
     /// Adjustment name
@@ -71,6 +71,18 @@ pub struct Adjustment {
     pub adjustment_amount: String,
     /// Adjustment promo code
     pub promo_code: String,
+}
+
+/// Turbo's fiat conversion rate response for 1GB of data storage
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RatesResponse {
+    /// Rate in winc
+    pub winc: String,
+    /// Rates adjustments
+    pub adjustments: Vec<Adjustment>,
+    /// Hashmap of fiat currencies and their rates
+    pub fiat: HashMap<String, f64>,
 }
 
 pub(crate) fn get_payment_url(client: &BundlerClient) -> Result<String, Error> {
