@@ -7,26 +7,36 @@ use anyhow::{Error, anyhow};
 use reqwest::{Client, ClientBuilder};
 
 pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io";
+pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Debug, Clone)]
 pub struct BundlerClient {
     /// The base URL of the bundling service, defaults to DEFAULT_BUNDLER_URL.
     pub url: Option<String>,
+    /// The payment URL if of the bundling service, it's required only for Turbo
+    /// bundling service setup given their API architecture: https://payment.ardrive.io/api-docs
+    pub payment_url: Option<String>,
     /// HTTP client for bundling service requests.
     pub http_client: Option<Client>,
+    _is_turbo: bool
 }
 
 impl Default for BundlerClient {
     fn default() -> Self {
-        Self { url: Some(DEFAULT_BUNDLER_URL.to_string()), http_client: None }
+        Self { url: Some(DEFAULT_BUNDLER_URL.to_string()), http_client: None, payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()), _is_turbo: true }
     }
 }
 
 impl BundlerClient {
     /// Creates a new bundler client builder.
     pub const fn new() -> Self {
-        Self { url: None, http_client: None }
+        Self { url: None, http_client: None, payment_url: None, _is_turbo: false }
+    }
+    /// Return a BundlerClient instance with Turbo configuration
+    /// Given the current design, turbo is the default.
+    pub fn turbo() -> Self {
+        BundlerClient::default()
     }
     /// Sets the base URL of the bundler service.
     pub fn url(mut self, url: &str) -> Self {
@@ -40,6 +50,13 @@ impl BundlerClient {
             .url
             .ok_or_else(|| "url not provided".to_string())
             .map_err(|e| anyhow!(e))?;
+
+        // check turbo's payment url
+        if self._is_turbo {
+            let _payment_url = self.clone().payment_url.ok_or_else(|| "turbo payment url not provided".to_string())
+            .map_err(|e| anyhow!(e))?;
+        }
+
         let client = ClientBuilder::new().build()?;
         self.http_client = Some(client);
         Ok(self)
@@ -115,6 +132,14 @@ mod tests {
     #[tokio::test]
     async fn test_default_and_info() {
         let client = BundlerClient::default().build().unwrap();
+        let info = client.info().await.unwrap();
+        println!("{:?}", info);
+        assert_eq!(info.gateway, "https://arweave.net");
+    }
+
+    #[tokio::test]
+    async fn test_turbo_info() {
+        let client = BundlerClient::turbo().build().unwrap();
         let info = client.info().await.unwrap();
         println!("{:?}", info);
         assert_eq!(info.gateway, "https://arweave.net");
