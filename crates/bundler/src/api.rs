@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 /// Response from a successful upload transaction upload to a bundler service.
 /// The API response structure is according to Turbo's bundler https://upload.ardrive.io/api-docs
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -25,5 +24,5 @@ pub struct SendTransactionResponse {
     /// Signed Dataitem signature
     pub signature: String,
     /// DataItem owner, signer
-    pub owner: String
+    pub owner: String,
 }
