@@ -1,7 +1,7 @@
 use crate::{
     api::{
-        BundlerInfoResponse, BytePriceWincResponse, RatesResponse, SendTransactionResponse,
-        DataitemStatusResponse, get_payment_url,
+        BundlerInfoResponse, BytePriceWincResponse, DataitemStatusResponse, RatesResponse,
+        SendTransactionResponse, get_payment_url,
     },
     token::token_ticker,
 };
@@ -85,11 +85,7 @@ impl BundlerClient {
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
-            .post(format!(
-                "{}/tx/{}",
-                self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
-                token
-            ))
+            .post(format!("{}/tx/{}", self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()), token))
             .header("Content-Type", "application/octet-stream")
             .body(signed_dataitem.to_bytes()?)
             .send()
@@ -142,17 +138,24 @@ impl BundlerClient {
     /// TURBO ONLY
     /// Get the status of a given dataitem id
     pub async fn status(self, id: &str) -> Result<DataitemStatusResponse, Error> {
-        let request = self.http_client.ok_or("http client error")
-        .map_err(|e| anyhow!(e.to_string()))?
-        .get(format!("{}/tx/{}/status", self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()), id)).send().await?;
+        let request = self
+            .http_client
+            .ok_or("http client error")
+            .map_err(|e| anyhow!(e.to_string()))?
+            .get(format!(
+                "{}/tx/{}/status",
+                self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
+                id
+            ))
+            .send()
+            .await?;
 
-    if request.status().is_success() {
-        let status : DataitemStatusResponse = request.json().await?;
-        Ok(status)
-    } else {
-        Err(anyhow!(request.status().to_string()))
-    }
-
+        if request.status().is_success() {
+            let status: DataitemStatusResponse = request.json().await?;
+            Ok(status)
+        } else {
+            Err(anyhow!(request.status().to_string()))
+        }
     }
 
     /// TURBO ONLY
@@ -205,9 +208,14 @@ mod tests {
         let client = BundlerClient::turbo().build().unwrap();
         let signer = SolanaSigner::random();
         let tags = vec![Tag::new("content-type", "text/plain")];
-        let dataitem =
-            DataItem::build_and_sign(&signer, None, None, tags, "hello world turbo".as_bytes().to_vec())
-                .unwrap();
+        let dataitem = DataItem::build_and_sign(
+            &signer,
+            None,
+            None,
+            tags,
+            "hello world turbo".as_bytes().to_vec(),
+        )
+        .unwrap();
 
         let tx = client.send_transaction(dataitem).await.unwrap();
         println!("tx: {:?}", tx);

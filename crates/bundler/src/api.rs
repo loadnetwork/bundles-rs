@@ -99,7 +99,7 @@ pub struct DataitemStatusResponse {
     /// Dataitem info
     pub info: String,
     /// Storage fee cost
-    pub winc: String
+    pub winc: String,
 }
 
 /// Utility function that returns the payment API URL given a BundlerClient instance ref

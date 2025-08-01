@@ -1,9 +1,9 @@
 //! Binary data‑item (ANS‑104) implementation.
 
 use anyhow::Result;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use sha2::{Digest, Sha256};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 
 use crate::{
     deep_hash::{DeepHash, deep_hash_sync},
