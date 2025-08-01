@@ -1,7 +1,7 @@
 use crate::{
     api::{
         BundlerInfoResponse, BytePriceWincResponse, RatesResponse, SendTransactionResponse,
-        get_payment_url,
+        DataitemStatusResponse, get_payment_url,
     },
     token::token_ticker,
 };
@@ -9,8 +9,8 @@ use ans104::data_item::DataItem;
 use anyhow::{Error, anyhow};
 use reqwest::{Client, ClientBuilder};
 
-pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io";
-pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io";
+pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
+pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io/v1";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Debug, Clone)]
@@ -86,7 +86,7 @@ impl BundlerClient {
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
             .post(format!(
-                "{}/v1/tx/{}",
+                "{}/tx/{}",
                 self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
                 token
             ))
@@ -104,11 +104,12 @@ impl BundlerClient {
     }
     /// Get the public info of the bundling service.
     pub async fn info(self) -> Result<BundlerInfoResponse, Error> {
+        let url = get_payment_url(&self)?;
         let request = self
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
-            .get(format!("{}/info", self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string())))
+            .get(format!("{}/info", url))
             .send()
             .await?;
 
@@ -127,7 +128,7 @@ impl BundlerClient {
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
-            .get(format!("{}/v1/price/bytes/{}", payment_url, byte_count))
+            .get(format!("{}/price/bytes/{}", payment_url, byte_count))
             .send()
             .await?;
 
@@ -137,6 +138,21 @@ impl BundlerClient {
         } else {
             Err(anyhow!(request.status().to_string()))
         }
+    }
+    /// TURBO ONLY
+    /// Get the status of a given dataitem id
+    pub async fn status(self, id: &str) -> Result<DataitemStatusResponse, Error> {
+        let request = self.http_client.ok_or("http client error")
+        .map_err(|e| anyhow!(e.to_string()))?
+        .get(format!("{}/tx/{}/status", self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()), id)).send().await?;
+
+    if request.status().is_success() {
+        let status : DataitemStatusResponse = request.json().await?;
+        Ok(status)
+    } else {
+        Err(anyhow!(request.status().to_string()))
+    }
+
     }
 
     /// TURBO ONLY
@@ -151,7 +167,7 @@ impl BundlerClient {
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
-            .get(format!("{}/v1/rates", DEFAULT_TURBO_PAYMENT_URL))
+            .get(format!("{}/rates", DEFAULT_TURBO_PAYMENT_URL))
             .send()
             .await?;
 
@@ -185,11 +201,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_send_transaction_solana_turbo() {
+        let client = BundlerClient::turbo().build().unwrap();
+        let signer = SolanaSigner::random();
+        let tags = vec![Tag::new("content-type", "text/plain")];
+        let dataitem =
+            DataItem::build_and_sign(&signer, None, None, tags, "hello world turbo".as_bytes().to_vec())
+                .unwrap();
+
+        let tx = client.send_transaction(dataitem).await.unwrap();
+        println!("tx: {:?}", tx);
+        assert_eq!(tx.id.len(), 43);
+    }
+
+    #[tokio::test]
     async fn test_default_and_info() {
         let client = BundlerClient::default().build().unwrap();
         let info = client.info().await.unwrap();
         println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net");
+        assert_eq!(info.gateway, "https://arweave.net/");
     }
 
     #[tokio::test]
@@ -197,7 +227,7 @@ mod tests {
         let client = BundlerClient::turbo().build().unwrap();
         let info = client.info().await.unwrap();
         println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net");
+        assert_eq!(info.gateway, "https://arweave.net/");
     }
 
     #[tokio::test]
@@ -214,5 +244,13 @@ mod tests {
         let rates = client.get_rates().await.unwrap();
         println!("{:?}", rates);
         assert_ne!(rates.winc, "0".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_turbo_tx_status() {
+        let client = BundlerClient::turbo().build().unwrap();
+        let status = client.status("w5n6r6PvqBRph2or4WiyjLumL9HE-IR_JgEcnct_3b0").await.unwrap();
+        println!("{:?}", status);
+        assert_eq!(status.status, "CONFIRMED".to_string());
     }
 }

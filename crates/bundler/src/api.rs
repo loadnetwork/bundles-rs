@@ -41,8 +41,10 @@ pub struct BundlerInfoResponse {
     pub addresses: HashMap<String, String>,
     /// Bundler's gateway
     pub gateway: String,
-    /// Bundler's dataitems size complete cost subsidizing
-    pub free_upload_limit_bytes: u64,
+    /// Bundler's dataitems size complete cost subsidizing, exist in
+    /// some Turbo endpoints
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_upload_limit_bytes: Option<u64>,
 }
 
 /// Response of the /price/bytes/:bytesCount payment endpoint of the bundling service.
@@ -85,6 +87,23 @@ pub struct RatesResponse {
     pub fiat: HashMap<String, f64>,
 }
 
+/// Turbo DataItem status response
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataitemStatusResponse {
+    /// Dataitem status
+    pub status: String,
+    /// Dataitem's bundle id (arweave settlement)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bundle_id: Option<String>,
+    /// Dataitem info
+    pub info: String,
+    /// Storage fee cost
+    pub winc: String
+}
+
+/// Utility function that returns the payment API URL given a BundlerClient instance ref
+/// For non-Turbo instances, payment url and the endpoint url are treated the same.
 pub(crate) fn get_payment_url(client: &BundlerClient) -> Result<String, Error> {
     if client._is_turbo {
         client
