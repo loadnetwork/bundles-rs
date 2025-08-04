@@ -138,6 +138,10 @@ impl BundlerClient {
     /// TURBO ONLY
     /// Get the status of a given dataitem id
     pub async fn status(self, id: &str) -> Result<DataitemStatusResponse, Error> {
+        if !self._is_turbo {
+            return  Ok(DataitemStatusResponse::default());
+        }
+
         let request = self
             .http_client
             .ok_or("http client error")
