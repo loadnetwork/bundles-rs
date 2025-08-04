@@ -1,8 +1,9 @@
 [package]
 name = "bundles_rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
 ans104 = { path = "../ans104" }
 crypto = { path = "../crypto" }
+bundler = { path = "../bundler" }
