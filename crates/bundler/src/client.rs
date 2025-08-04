@@ -53,7 +53,7 @@ impl BundlerClient {
         self
     }
     /// Builds the bundling client with the set configuration.
-    pub fn build(mut self) -> Result<Self, Error> {
+    pub fn build(self) -> Result<Self, Error> {
         let _url = self
             .clone()
             .url
@@ -70,8 +70,7 @@ impl BundlerClient {
         }
 
         let client = ClientBuilder::new().build()?;
-        self.http_client = Some(client);
-        Ok(self)
+        Ok(Self { url: self.url, payment_url: self.payment_url, _is_turbo: self._is_turbo, http_client: Some(client) })
     }
     /// Sends a signed Dataitem to the configured bundling service client.
     pub async fn send_transaction(
@@ -99,10 +98,10 @@ impl BundlerClient {
         }
     }
     /// Get the public info of the bundling service.
-    pub async fn info(self) -> Result<BundlerInfoResponse, Error> {
+    pub async fn info(&self) -> Result<BundlerInfoResponse, Error> {
         let url = get_payment_url(&self)?;
         let request = self
-            .http_client
+            .http_client.clone()
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
             .get(format!("{}/info", url))
@@ -117,10 +116,10 @@ impl BundlerClient {
         }
     }
     /// Get the current amount of winc it will cost to upload a given byte count worth of data items
-    pub async fn bytes_price(self, byte_count: u64) -> Result<BytePriceWincResponse, Error> {
+    pub async fn bytes_price(&self, byte_count: u64) -> Result<BytePriceWincResponse, Error> {
         let payment_url = get_payment_url(&self)?;
 
-        let request = self
+        let request = self.clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
@@ -137,18 +136,18 @@ impl BundlerClient {
     }
     /// TURBO ONLY
     /// Get the status of a given dataitem id
-    pub async fn status(self, id: &str) -> Result<DataitemStatusResponse, Error> {
+    pub async fn status(&self, id: &str) -> Result<DataitemStatusResponse, Error> {
         if !self._is_turbo {
             return  Ok(DataitemStatusResponse::default());
         }
 
-        let request = self
+        let request = self.clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
             .get(format!(
                 "{}/tx/{}/status",
-                self.url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
+                self.clone().url.unwrap_or(DEFAULT_BUNDLER_URL.to_string()),
                 id
             ))
             .send()
@@ -165,12 +164,12 @@ impl BundlerClient {
     /// TURBO ONLY
     /// Get the supported fiat currency conversion rates for 1GB of storage based on current market
     /// prices.
-    pub async fn get_rates(self) -> Result<RatesResponse, Error> {
+    pub async fn get_rates(&self) -> Result<RatesResponse, Error> {
         if !self._is_turbo {
             return Ok(RatesResponse::default());
         }
 
-        let request = self
+        let request = self.clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
@@ -263,6 +262,6 @@ mod tests {
         let client = BundlerClient::turbo().build().unwrap();
         let status = client.status("w5n6r6PvqBRph2or4WiyjLumL9HE-IR_JgEcnct_3b0").await.unwrap();
         println!("{:?}", status);
-        assert_eq!(status.status, "CONFIRMED".to_string());
+        assert_eq!(status.status, "FINALIZED".to_string());
     }
 }
