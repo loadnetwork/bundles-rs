@@ -6,3 +6,10 @@ pub mod api;
 pub mod client;
 
 mod token;
+
+// direct re-exports
+pub use api::{
+    Adjustment, BundlerInfoResponse, BytePriceWincResponse, DataitemStatusResponse, RatesResponse,
+    SendTransactionResponse,
+};
+pub use client::BundlerClient;

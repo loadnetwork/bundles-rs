@@ -70,7 +70,12 @@ impl BundlerClient {
         }
 
         let client = ClientBuilder::new().build()?;
-        Ok(Self { url: self.url, payment_url: self.payment_url, _is_turbo: self._is_turbo, http_client: Some(client) })
+        Ok(Self {
+            url: self.url,
+            payment_url: self.payment_url,
+            _is_turbo: self._is_turbo,
+            http_client: Some(client),
+        })
     }
     /// Sends a signed Dataitem to the configured bundling service client.
     pub async fn send_transaction(
@@ -101,7 +106,8 @@ impl BundlerClient {
     pub async fn info(&self) -> Result<BundlerInfoResponse, Error> {
         let url = get_payment_url(&self)?;
         let request = self
-            .http_client.clone()
+            .http_client
+            .clone()
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
             .get(format!("{}/info", url))
@@ -119,7 +125,8 @@ impl BundlerClient {
     pub async fn bytes_price(&self, byte_count: u64) -> Result<BytePriceWincResponse, Error> {
         let payment_url = get_payment_url(&self)?;
 
-        let request = self.clone()
+        let request = self
+            .clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
@@ -138,10 +145,11 @@ impl BundlerClient {
     /// Get the status of a given dataitem id
     pub async fn status(&self, id: &str) -> Result<DataitemStatusResponse, Error> {
         if !self._is_turbo {
-            return  Ok(DataitemStatusResponse::default());
+            return Ok(DataitemStatusResponse::default());
         }
 
-        let request = self.clone()
+        let request = self
+            .clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
@@ -169,7 +177,8 @@ impl BundlerClient {
             return Ok(RatesResponse::default());
         }
 
-        let request = self.clone()
+        let request = self
+            .clone()
             .http_client
             .ok_or("http client error")
             .map_err(|e| anyhow!(e.to_string()))?
