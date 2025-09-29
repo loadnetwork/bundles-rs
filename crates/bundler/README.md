@@ -1,7 +1,7 @@
 ## About
 `bundler` crate is Rust SDK to interact with Arweave (ANS-104) bundling services. This crate is designed to be backward compatible with existing bundling services and fine tuned for [Turbo](https://turbo.ardrive.io/)
 
-> The offchain bundling service (Load S3), introduced in SDK v3, only supports the `send_transaction()` method. Its Fast Finality Indexes resolve only DataItems signed with Arweave key.
+> The offchain bundling service (Load S3), introduced in SDK v3, only supports the `send_transaction()` method. Its Fast Finality Indexes resolve only DataItems signed with Arweave key. Full features compatibility is WIP.
 
 ## Installation
 
