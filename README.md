@@ -21,8 +21,8 @@ bundles_rs = { git = "https://github.com/loadnetwork/bundles-rs", branch = "main
 
 # use individual crates
 # or use branch/tag/rev -- we recommend checking and using the last client version
-ans104 = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" } 
-crypto = { git = "https://github.com/loadnetwork/bundles-rs", version = "0.1.0" }
+ans104 = { git = "https://github.com/loadnetwork/bundles-rs", version = "x.x.x" } 
+crypto = { git = "https://github.com/loadnetwork/bundles-rs", version = "x.x.x" }
 ```
 ### Dev setup
 
@@ -220,28 +220,19 @@ println!("Deep hash hex: {}", hex::encode(hash));
 ### Upload to Bundling services (e.g. [Turbo](https://ardrive.io/turbo-bundler))
 
 ```rust
-use reqwest::Client;
+use bundles_rs::bundler::BundlerClient;
+use bundles_rs::ans104::{data_item::DataItem, tags::Tag};
+use bundles_rs::crypto::solana::SolanaSigner;
 
-async fn upload_to_turbo(item: &DataItem) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::new();
-    let bytes = item.to_bytes()?;
-    
-    let response = client
-        .post("https://turbo.ardrive.io/tx/solana")
-        .header("Content-Type", "application/octet-stream")
-        .body(bytes)
-        .send()
-        .await?;
-    
-    if response.status().is_success() {
-        let tx_id = response.text().await?;
-        Ok(tx_id)
-    } else {
-        Err(format!("Upload failed: {}", response.status()).into())
-    }
-}
+let client = BundlerClient::turbo().build().unwrap();
+let signer = SolanaSigner::random();
+let tags = vec![Tag::new("content-type", "text/plain")];
+let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world turbo".to_vec()).unwrap();
+
+let tx = client.send_transaction(dataitem).await.unwrap();
+println!("tx: {:?}", tx);
 ```
-For fully detailed dataitem upload example, checkout this [example](./examples/upload/).
+For fully detailed examples, checkout the [bundler crate](./crates/bundler/README.md)
 
 ## License
 
