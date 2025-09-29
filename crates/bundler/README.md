@@ -1,6 +1,8 @@
 ## About
 `bundler` crate is Rust SDK to interact with Arweave (ANS-104) bundling services. This crate is designed to be backward compatible with existing bundling services and fine tuned for [Turbo](https://turbo.ardrive.io/)
 
+> The offchain bundling service (Load S3), introduced in SDK v3, only supports the `send_transaction()` method. Its Fast Finality Indexes resolve only DataItems signed with Arweave key.
+
 ## Installation
 
 ```toml
@@ -40,6 +42,19 @@ let client = BundlerClient::turbo().build().unwrap();
 let signer = SolanaSigner::random();
 let tags = vec![Tag::new("content-type", "text/plain")];
 let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world turbo".to_vec()).unwrap();
+
+let tx = client.send_transaction(dataitem).await.unwrap();
+println!("tx: {:?}", tx);
+```
+
+### Send Transaction (Load S3 - offchain)
+
+```rust
+let client = BundlerClient::offchain().build().unwrap();
+// the data_caches/fast_finality_indexes only support AR signatures for now
+let signer = ArweaveSigner::random();
+let tags = vec![Tag::new("content-type", "text/plain")];
+let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world LS3".to_vec()).unwrap();
 
 let tx = client.send_transaction(dataitem).await.unwrap();
 println!("tx: {:?}", tx);
@@ -89,3 +104,6 @@ println!("{:?}", status);
 
 * upload api: https://upload.ardrive.io/api-docs
 * payment api: https://payment.ardrive.io/api-docs
+
+## Load S3 Upload Service API References:
+* loaded-turbo-api: https://github.com/loadnetwork/loaded-turbo-api

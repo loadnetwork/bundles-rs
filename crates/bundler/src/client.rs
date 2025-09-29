@@ -11,6 +11,7 @@ use reqwest::{Client, ClientBuilder};
 
 pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
 pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io/v1";
+pub(crate) const OFFCHAIN_BUNDLER_URL: &str = "https://loaded-turbo-api.load.network/v1";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Debug, Clone)]
@@ -46,6 +47,18 @@ impl BundlerClient {
     /// Given the current design, turbo is the default.
     pub fn turbo() -> Self {
         BundlerClient::default()
+    }
+    /// Return a BundlerClient instance with Load S3 offchain
+    /// bundler configuration (Turbo compliant) - in this
+    /// release, only /v1/tx/:token method (send_transaction)
+    /// is supported in the offchain bundler
+    pub fn offchain() -> Self {
+        Self {
+            url: Some(OFFCHAIN_BUNDLER_URL.to_string()),
+            payment_url: None,
+            http_client: None,
+            _is_turbo: false,
+        }
     }
     /// Sets the base URL of the bundler service.
     pub fn url(mut self, url: &str) -> Self {
@@ -199,7 +212,7 @@ impl BundlerClient {
 mod tests {
     use super::*;
     use ans104::{data_item::DataItem, tags::Tag};
-    use crypto::solana::SolanaSigner;
+    use crypto::{arweave::ArweaveSigner, solana::SolanaSigner};
 
     #[tokio::test]
     async fn test_send_transaction_solana() {
@@ -226,6 +239,25 @@ mod tests {
             None,
             tags,
             "hello world turbo".as_bytes().to_vec(),
+        )
+        .unwrap();
+
+        let tx = client.send_transaction(dataitem).await.unwrap();
+        println!("tx: {:?}", tx);
+        assert_eq!(tx.id.len(), 43);
+    }
+
+    #[tokio::test]
+    async fn test_send_transaction_solana_offchain() {
+        let client = BundlerClient::offchain().build().unwrap();
+        let signer = ArweaveSigner::random().unwrap();
+        let tags = vec![Tag::new("content-type", "text/plain")];
+        let dataitem = DataItem::build_and_sign(
+            &signer,
+            None,
+            None,
+            tags,
+            "hello world offchain".as_bytes().to_vec(),
         )
         .unwrap();
 
