@@ -73,12 +73,20 @@ impl SignatureType {
                 let n = BigUint::from_bytes_be(owner);
                 let pk = RsaPublicKey::new(n, BigUint::from(65_537u32))
                     .map_err(|e| Error::InvalidKeyFormat(e.to_string()))?;
-                let verifier = VerifyingKey::<Sha256>::new_with_salt_len(pk, 32);
                 let sig = PssSig::try_from(signature).map_err(|_| {
                     Error::InvalidSignatureLength { expected: 512, actual: signature.len() }
                 })?;
 
-                Ok(verifier.verify(message, &sig).is_ok())
+                let salt_lengths = [32, 478];
+
+                for &salt_len in &salt_lengths {
+                    let verifier = VerifyingKey::<Sha256>::new_with_salt_len(pk.clone(), salt_len);
+                    if verifier.verify(message, &sig).is_ok() {
+                        return Ok(true);
+                    }
+                }
+
+                Ok(false)
             }
             SignatureType::Ed25519 => {
                 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
