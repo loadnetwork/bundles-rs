@@ -1,9 +1,3 @@
-<p align="center">
-  <a href="https://load.network">
-    <img src="https://gateway.load.rs/bundle/0x83cf4417880af0d2df56ce04ecfc108ea4ee940e8fb81400e31ab81571e28d21/0">
-  </a>
-</p>
-
 ## About
 A Rust SDK for creating, signing, managing and posting [ANS-104 dataitems](https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md).
 
@@ -17,17 +11,17 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 # main library
-bundles_rs = { git = "https://github.com/loadnetwork/bundles-rs", branch = "main" }
+bundles_rs = { git = "https://github.com/permaweb/bundles-rs", branch = "main" }
 
 # use individual crates
 # or use branch/tag/rev -- we recommend checking and using the last client version
-ans104 = { git = "https://github.com/loadnetwork/bundles-rs", version = "x.x.x" } 
-crypto = { git = "https://github.com/loadnetwork/bundles-rs", version = "x.x.x" }
+ans104 = { git = "https://github.com/permaweb/bundles-rs", version = "x.x.x" } 
+crypto = { git = "https://github.com/permaweb/bundles-rs", version = "x.x.x" }
 ```
 ### Dev setup
 
 ```bash
-git clone https://github.com/loadnetwork/bundles-rs.git
+git clone https://github.com/permaweb/bundles-rs.git
 cd bundles-rs
 cargo clippy --workspace --lib --examples --tests --benches --locked --all-features
 cargo +nightly fmt
@@ -74,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create tags (metadata)
     let tags = vec![
         Tag::new("Content-Type", "text/plain"),
-        Tag::new("App-Name", "Load-Network"),
+        Tag::new("App-Name", "Permaweb-Test-App"),
     ];
     
     // create and sign a dataitem
@@ -245,3 +239,6 @@ Licensed at your option under either of:
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
+
+## Credits
+This repository was initially developed by the [Decent Land Labs](https://decent.land) team and is currently maintained and continuously developed by the Permaweb team.

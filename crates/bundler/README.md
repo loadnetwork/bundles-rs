@@ -8,10 +8,10 @@
 ```toml
 [dependencies]
 # main library
-bundles_rs = { git = "https://github.com/loadnetwork/bundles-rs", branch = "main" }
+bundles_rs = { git = "https://github.com/permaweb/bundles-rs", branch = "main" }
 
 # bundler only
-bundler = { git = "https://github.com/loadnetwork/bundles-rs", branch = "main" }
+bundler = { git = "https://github.com/permaweb/bundles-rs", branch = "main" }
 ```
 ### Imports
 
