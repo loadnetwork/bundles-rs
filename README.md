@@ -230,15 +230,18 @@ For fully detailed examples, checkout the [bundler crate](./crates/bundler/READM
 
 ## License
 
+#### for releases up to [v0.3.1](https://github.com/permaweb/bundles-rs/releases/tag/v0.3.1)
 Licensed at your option under either of:
  * [Apache License, Version 2.0](LICENSE-APACHE)
  * [MIT License](LICENSE-MIT)
 
+#### for releases after v0.3.1
+* [MIT License](LICENSE-MIT)
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+for inclusion in the work by you will be licensed under the [MIT License](./LICENSE-MIT)
 
 ## Credits
 This repository was initially developed by the [Decent Land Labs](https://decent.land) team and is currently maintained and continuously developed by the Permaweb team.

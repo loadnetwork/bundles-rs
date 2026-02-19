@@ -7,10 +7,10 @@ resolver = "2"
 version = "0.3.1"
 edition = "2024"
 rust-version = "1.85"
-authors = ["Load Network"]
-license = "MIT OR Apache-2.0"
-homepage = "https://github.com/loadnetwork/bundles-rs"
-repository = "https://github.com/loadnetwork/bundles-rs"
+authors = ["Permaweb"]
+license = "MIT"
+homepage = "https://github.com/permaweb/bundles-rs"
+repository = "https://github.com/permaweb/bundles-rs"
 exclude = ["benches/", "tests/", "testdata/"]
 
 [workspace.lints.rust]
