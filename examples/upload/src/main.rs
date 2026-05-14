@@ -10,8 +10,7 @@ use bundles_rs::{
             wait_for_assignment_slot,
         },
     },
-    crypto::arweave::ArweaveSigner,
-    crypto::solana::SolanaSigner,
+    crypto::{arweave::ArweaveSigner, solana::SolanaSigner},
 };
 use clap::Parser;
 use std::time::Duration;
@@ -76,7 +75,7 @@ async fn main() -> Result<()> {
 
 async fn upload_hyperbeam(blob: &[u8], opts: &Opts) -> Result<String> {
     let signer = ArweaveSigner::from_jwk_file(&opts.wallet)?;
-    let tags = vec![Tag::new("Content-Type", "application/octet-stream")];
+    let tags = vec![Tag::new("Content-Type", "text/plain")];
     let item = DataItem::build_and_sign(&signer, None, None, tags, blob.to_vec())?;
     let item_size = item.to_bytes()?.len() as u64;
 
@@ -131,6 +130,7 @@ async fn auto_fund_hyperbeam(
         node_url,
         DepositImport {
             import_path: DEFAULT_DEPOSIT_IMPORT_PATH,
+            deposit_address: &deposit_address,
             message_id: &message_id,
             quantity,
             recipient: &recipient,

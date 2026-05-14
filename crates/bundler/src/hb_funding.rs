@@ -24,7 +24,7 @@ pub const DEFAULT_DEPOSIT_IMPORT_PATH: &str = "/~ao-payment@1.0/ingest";
 /// HyperBEAM quote route for AR byte pricing.
 pub const BYTE_PRICE_QUOTE_PATH: &str = "/~arweave-byte-pricing@1.0/quote";
 /// HyperBEAM AO deposit address route.
-pub const AO_DEPOSIT_ADDRESS_PATH: &str = "/~meta@1.0/info/ao-payment-deposit-address";
+pub const AO_DEPOSIT_ADDRESS_PATH: &str = "/~meta@1.0/info/address";
 
 /// Create the signed AO token transfer message used by HyperBEAM auto-funding.
 pub fn sign_ao_transfer<S: Signer>(
@@ -38,11 +38,11 @@ pub fn sign_ao_transfer<S: Signer>(
         Tag::new("Action", "Transfer"),
         Tag::new("Quantity", quantity.to_string()),
         Tag::new("Recipient", deposit_address),
+        Tag::new("Content-Type", "text/plain"),
+        Tag::new("SDK", "aoconnect"),
         Tag::new("Data-Protocol", "ao"),
         Tag::new("Variant", "ao.TN.1"),
         Tag::new("Type", "Message"),
-        Tag::new("Content-Type", "text/plain"),
-        Tag::new("SDK", "aoconnect"),
     ];
 
     DataItem::build_and_sign(signer, Some(target), None, tags, b" ".to_vec())
@@ -118,12 +118,13 @@ pub async fn import_deposit(
 ) -> Result<(), Error> {
     let mut url = Url::parse(&hb_path_url(node_url, request.import_path))?;
     url.query_pairs_mut()
+        .append_pair("token", request.token_id)
+        .append_pair("deposit-address", request.deposit_address)
         .append_pair("message-id", request.message_id)
         .append_pair("quantity", &request.quantity.to_string())
         .append_pair("recipient", request.recipient)
         .append_pair("sender", request.sender)
-        .append_pair("slot", request.slot)
-        .append_pair("token", request.token_id);
+        .append_pair("slot", request.slot);
 
     let response = client.post(url).send().await?;
     if !response.status().is_success() {
@@ -138,6 +139,8 @@ pub async fn import_deposit(
 pub struct DepositImport<'a> {
     /// Deposit import path on the HyperBEAM node.
     pub import_path: &'a str,
+    /// AO token deposit address.
+    pub deposit_address: &'a str,
     /// AO transfer message id.
     pub message_id: &'a str,
     /// Imported quantity in AO base units.
