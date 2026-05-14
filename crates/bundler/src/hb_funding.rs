@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use ans104::{data_item::DataItem, tags::Tag};
 use anyhow::{Error, anyhow};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use crypto::arweave::ArweaveSigner;
 use crypto::signer::Signer;
 use reqwest::{Client, Url};
 use serde_json::Value;
@@ -132,6 +133,52 @@ pub async fn import_deposit(
     }
 
     Ok(())
+}
+
+/// Ensure enough local HyperBEAM AO ledger credit exists for an upload.
+pub async fn auto_fund_upload(
+    client: Client,
+    node_url: &str,
+    signer: &ArweaveSigner,
+    upload_size: u64,
+) -> Result<(), Error> {
+    let recipient = signer.address();
+    let required = quote_ar_bytes(client.clone(), node_url, upload_size).await?;
+    let before = ledger_balance(client.clone(), node_url, DEFAULT_LEDGER_ROUTE, &recipient).await?;
+
+    if before >= required {
+        return Ok(());
+    }
+
+    let quantity = required - before;
+    let deposit_address = ao_deposit_address(client.clone(), node_url).await?;
+    let transfer = sign_ao_transfer(signer, DEFAULT_AO_TOKEN_ID, quantity, &deposit_address)?;
+    let message_id = send_ao_message(client.clone(), DEFAULT_MU_URL, transfer).await?;
+    let slot = wait_for_assignment_slot(
+        client.clone(),
+        DEFAULT_AO_STATE_URL,
+        DEFAULT_AO_TOKEN_ID,
+        &message_id,
+        Duration::from_secs(5),
+        Duration::from_secs(360),
+    )
+    .await?;
+
+    import_deposit(
+        client,
+        node_url,
+        DepositImport {
+            import_path: DEFAULT_DEPOSIT_IMPORT_PATH,
+            deposit_address: &deposit_address,
+            message_id: &message_id,
+            quantity,
+            recipient: &recipient,
+            sender: &recipient,
+            slot: &slot,
+            token_id: DEFAULT_AO_TOKEN_ID,
+        },
+    )
+    .await
 }
 
 /// Deposit import request fields.
