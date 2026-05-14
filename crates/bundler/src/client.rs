@@ -3,18 +3,21 @@ use crate::{
         BundlerInfoResponse, BytePriceWincResponse, DataitemStatusResponse, RatesResponse,
         SendTransactionResponse, get_payment_url,
     },
+    hb_funding, hyperbeam,
     token::token_ticker,
 };
 use ans104::data_item::DataItem;
 use anyhow::{Error, anyhow};
+use crypto::arweave::ArweaveSigner;
 use reqwest::{Client, ClientBuilder};
+use std::{fmt, sync::Arc};
 
 pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
 pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io/v1";
 pub(crate) const OFFCHAIN_BUNDLER_URL: &str = "https://loaded-turbo-api.load.network/v1";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BundlerClient {
     /// The base URL of the bundling service, defaults to DEFAULT_BUNDLER_URL.
     pub url: Option<String>,
@@ -25,6 +28,26 @@ pub struct BundlerClient {
     pub http_client: Option<Client>,
     /// Internal flag for Turbo distinction
     pub(crate) _is_turbo: bool,
+    /// Internal flag for HyperBEAM bundler uploads.
+    pub(crate) _is_hyperbeam: bool,
+    /// HyperBEAM bundler upload route.
+    pub(crate) hyperbeam_upload_path: Option<String>,
+    /// Arweave signer used to auto-fund HyperBEAM AO ledger credit.
+    pub(crate) hyperbeam_auto_fund_signer: Option<Arc<ArweaveSigner>>,
+}
+
+impl fmt::Debug for BundlerClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BundlerClient")
+            .field("url", &self.url)
+            .field("payment_url", &self.payment_url)
+            .field("http_client", &self.http_client)
+            .field("_is_turbo", &self._is_turbo)
+            .field("_is_hyperbeam", &self._is_hyperbeam)
+            .field("hyperbeam_upload_path", &self.hyperbeam_upload_path)
+            .field("hyperbeam_auto_fund", &self.hyperbeam_auto_fund_signer.is_some())
+            .finish()
+    }
 }
 
 impl Default for BundlerClient {
@@ -34,6 +57,9 @@ impl Default for BundlerClient {
             http_client: None,
             payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
             _is_turbo: true,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
+            hyperbeam_auto_fund_signer: None,
         }
     }
 }
@@ -41,7 +67,15 @@ impl Default for BundlerClient {
 impl BundlerClient {
     /// Creates a new bundler client builder.
     pub const fn new() -> Self {
-        Self { url: None, http_client: None, payment_url: None, _is_turbo: false }
+        Self {
+            url: None,
+            http_client: None,
+            payment_url: None,
+            _is_turbo: false,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
+            hyperbeam_auto_fund_signer: None,
+        }
     }
     /// Return a BundlerClient instance with Turbo configuration
     /// Given the current design, turbo is the default.
@@ -58,11 +92,36 @@ impl BundlerClient {
             payment_url: None,
             http_client: None,
             _is_turbo: false,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
+            hyperbeam_auto_fund_signer: None,
+        }
+    }
+    /// Return a BundlerClient instance configured for HyperBEAM bundler uploads.
+    pub fn hyperbeam() -> Self {
+        Self {
+            url: None,
+            payment_url: None,
+            http_client: None,
+            _is_turbo: false,
+            _is_hyperbeam: true,
+            hyperbeam_upload_path: Some(hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
+            hyperbeam_auto_fund_signer: None,
         }
     }
     /// Sets the base URL of the bundler service.
     pub fn url(mut self, url: &str) -> Self {
         self.url = Some(url.to_string());
+        self
+    }
+    /// Sets the HyperBEAM bundler upload route.
+    pub fn hyperbeam_upload_path(mut self, upload_path: &str) -> Self {
+        self.hyperbeam_upload_path = Some(upload_path.to_string());
+        self
+    }
+    /// Enables HyperBEAM AO ledger auto-funding before upload.
+    pub fn auto_fund(mut self, signer: ArweaveSigner) -> Self {
+        self.hyperbeam_auto_fund_signer = Some(Arc::new(signer));
         self
     }
     /// Builds the bundling client with the set configuration.
@@ -87,6 +146,9 @@ impl BundlerClient {
             url: self.url,
             payment_url: self.payment_url,
             _is_turbo: self._is_turbo,
+            _is_hyperbeam: self._is_hyperbeam,
+            hyperbeam_upload_path: self.hyperbeam_upload_path,
+            hyperbeam_auto_fund_signer: self.hyperbeam_auto_fund_signer,
             http_client: Some(client),
         })
     }
@@ -95,6 +157,31 @@ impl BundlerClient {
         self,
         signed_dataitem: DataItem,
     ) -> Result<SendTransactionResponse, Error> {
+        if self._is_hyperbeam {
+            let http_client =
+                self.http_client.ok_or("http client error").map_err(|e| anyhow!(e.to_string()))?;
+            let url = self.url.ok_or("url not provided").map_err(|e| anyhow!(e.to_string()))?;
+
+            if let Some(signer) = self.hyperbeam_auto_fund_signer {
+                hb_funding::auto_fund_upload(
+                    http_client.clone(),
+                    &url,
+                    signer.as_ref(),
+                    signed_dataitem.to_bytes()?.len() as u64,
+                )
+                .await?;
+            }
+
+            return hyperbeam::send_transaction(
+                http_client,
+                url,
+                self.hyperbeam_upload_path
+                    .unwrap_or_else(|| hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
+                signed_dataitem,
+            )
+            .await;
+        }
+
         let token = token_ticker(signed_dataitem.signature_type)
             .ok_or("error invalid signature type")
             .map_err(|e| anyhow!(e.to_string()))?;

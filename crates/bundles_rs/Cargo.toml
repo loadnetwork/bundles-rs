@@ -1,9 +1,18 @@
 [package]
 name = "bundles_rs"
-version = "0.2.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
 
 [dependencies]
 ans104 = { path = "../ans104" }
 crypto = { path = "../crypto" }
 bundler = { path = "../bundler" }
+
+[lints]
+workspace = true

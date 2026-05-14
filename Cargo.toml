@@ -4,7 +4,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.3.2"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Permaweb"]
@@ -38,7 +38,7 @@ ans104 = { version = "0.1.0", path = "crates/ans104", default-features = false }
 crypto = { version = "0.1.0", path = "crates/crypto", default-features = false }
 
 anyhow = "1.0"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bytes = "1.10.1"

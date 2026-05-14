@@ -31,16 +31,18 @@ async fn main() -> Result<()> {
     match (&opts.blob, &opts.verify) {
         (Some(path), None) => {
             let blob = std::fs::read(path)?;
+
             let sk = std::env::var("SOLANA_PK").expect("set SOLANA_PK with your Turbo Solana key");
 
             let (item_id, _) = upload_and_save(&blob, &sk).await?;
-            println!("✔ uploaded — item_id={item_id}");
+            println!("uploaded: item_id={item_id}");
         }
         _ => return Err(anyhow!("use either --blob <file> or --verify <tx_id>")),
     }
 
     Ok(())
 }
+
 async fn upload_and_save(blob: &[u8], sk: &str) -> Result<(String, Vec<u8>)> {
     let tags = vec![
         Tag::new("Content-Type", "application/octet-stream"),

@@ -226,6 +226,27 @@ let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world
 let tx = client.send_transaction(dataitem).await.unwrap();
 println!("tx: {:?}", tx);
 ```
+
+#### HyperBEAM Bundlers
+
+```rust
+use bundles_rs::bundler::BundlerClient;
+use bundles_rs::ans104::{data_item::DataItem, tags::Tag};
+use bundles_rs::crypto::arweave::ArweaveSigner;
+
+let signer = ArweaveSigner::from_jwk_file("wallet.json").unwrap();
+let tags = vec![Tag::new("Content-Type", "text/plain")];
+let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world hyperbeam".to_vec()).unwrap();
+let client = BundlerClient::hyperbeam()
+    .url("https://lapee.hyperzine.xyz")
+    .auto_fund(signer)
+    .build()
+    .unwrap();
+
+let tx = client.send_transaction(dataitem).await.unwrap();
+println!("tx: {:?}", tx);
+```
+
 For fully detailed examples, checkout the [bundler crate](./crates/bundler/README.md)
 
 ## License

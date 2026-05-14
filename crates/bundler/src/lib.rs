@@ -4,7 +4,10 @@
 pub mod api;
 /// client functionality for bundling services.
 pub mod client;
+/// HyperBEAM AO payment funding helpers.
+pub mod hb_funding;
 
+mod hyperbeam;
 mod token;
 
 // direct re-exports
