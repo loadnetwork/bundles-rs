@@ -3,6 +3,7 @@ use crate::{
         BundlerInfoResponse, BytePriceWincResponse, DataitemStatusResponse, RatesResponse,
         SendTransactionResponse, get_payment_url,
     },
+    hyperbeam,
     token::token_ticker,
 };
 use ans104::data_item::DataItem;
@@ -25,6 +26,10 @@ pub struct BundlerClient {
     pub http_client: Option<Client>,
     /// Internal flag for Turbo distinction
     pub(crate) _is_turbo: bool,
+    /// Internal flag for HyperBEAM bundler uploads.
+    pub(crate) _is_hyperbeam: bool,
+    /// HyperBEAM bundler upload route.
+    pub(crate) hyperbeam_upload_path: Option<String>,
 }
 
 impl Default for BundlerClient {
@@ -34,6 +39,8 @@ impl Default for BundlerClient {
             http_client: None,
             payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
             _is_turbo: true,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
         }
     }
 }
@@ -41,7 +48,14 @@ impl Default for BundlerClient {
 impl BundlerClient {
     /// Creates a new bundler client builder.
     pub const fn new() -> Self {
-        Self { url: None, http_client: None, payment_url: None, _is_turbo: false }
+        Self {
+            url: None,
+            http_client: None,
+            payment_url: None,
+            _is_turbo: false,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
+        }
     }
     /// Return a BundlerClient instance with Turbo configuration
     /// Given the current design, turbo is the default.
@@ -58,11 +72,29 @@ impl BundlerClient {
             payment_url: None,
             http_client: None,
             _is_turbo: false,
+            _is_hyperbeam: false,
+            hyperbeam_upload_path: None,
+        }
+    }
+    /// Return a BundlerClient instance configured for HyperBEAM bundler uploads.
+    pub fn hyperbeam() -> Self {
+        Self {
+            url: None,
+            payment_url: None,
+            http_client: None,
+            _is_turbo: false,
+            _is_hyperbeam: true,
+            hyperbeam_upload_path: Some(hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
         }
     }
     /// Sets the base URL of the bundler service.
     pub fn url(mut self, url: &str) -> Self {
         self.url = Some(url.to_string());
+        self
+    }
+    /// Sets the HyperBEAM bundler upload route.
+    pub fn hyperbeam_upload_path(mut self, upload_path: &str) -> Self {
+        self.hyperbeam_upload_path = Some(upload_path.to_string());
         self
     }
     /// Builds the bundling client with the set configuration.
@@ -87,6 +119,8 @@ impl BundlerClient {
             url: self.url,
             payment_url: self.payment_url,
             _is_turbo: self._is_turbo,
+            _is_hyperbeam: self._is_hyperbeam,
+            hyperbeam_upload_path: self.hyperbeam_upload_path,
             http_client: Some(client),
         })
     }
@@ -95,6 +129,17 @@ impl BundlerClient {
         self,
         signed_dataitem: DataItem,
     ) -> Result<SendTransactionResponse, Error> {
+        if self._is_hyperbeam {
+            return hyperbeam::send_transaction(
+                self.http_client.ok_or("http client error").map_err(|e| anyhow!(e.to_string()))?,
+                self.url.ok_or("url not provided").map_err(|e| anyhow!(e.to_string()))?,
+                self.hyperbeam_upload_path
+                    .unwrap_or_else(|| hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
+                signed_dataitem,
+            )
+            .await;
+        }
+
         let token = token_ticker(signed_dataitem.signature_type)
             .ok_or("error invalid signature type")
             .map_err(|e| anyhow!(e.to_string()))?;

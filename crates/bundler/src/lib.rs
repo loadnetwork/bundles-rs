@@ -5,6 +5,7 @@ pub mod api;
 /// client functionality for bundling services.
 pub mod client;
 
+mod hyperbeam;
 mod token;
 
 // direct re-exports
