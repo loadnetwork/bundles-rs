@@ -23,7 +23,6 @@ async fn get_wallet_ar_balance(address: &str, client: Client) -> Result<u128, Er
     let url = format!("{DEFAULT_ARWEAVE_GATEWAY}/wallet/{address}/balance");
     let balance = client.get(&url).send().await?.text().await?;
     Ok(balance.parse::<u128>()?)
-
 }
 
 async fn get_operator_balance(base_url: &str, client: Client) -> Result<u128, Error> {
