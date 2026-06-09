@@ -32,6 +32,10 @@ pub struct BundlerClient {
     pub(crate) _is_hyperbeam: bool,
     /// HyperBEAM bundler upload route.
     pub(crate) hyperbeam_upload_path: Option<String>,
+    /// PermawebOS endpoint used to discover active HyperBEAM bundler uploaders.
+    pub(crate) hyperbeam_selection_endpoint: Option<String>,
+    /// PermawebOS staking process ID used to discover active HyperBEAM bundler uploaders.
+    pub(crate) hyperbeam_selection_process_id: Option<String>,
     /// Arweave signer used to auto-fund HyperBEAM AO ledger credit.
     pub(crate) hyperbeam_auto_fund_signer: Option<Arc<ArweaveSigner>>,
 }
@@ -45,6 +49,8 @@ impl fmt::Debug for BundlerClient {
             .field("_is_turbo", &self._is_turbo)
             .field("_is_hyperbeam", &self._is_hyperbeam)
             .field("hyperbeam_upload_path", &self.hyperbeam_upload_path)
+            .field("hyperbeam_selection_endpoint", &self.hyperbeam_selection_endpoint)
+            .field("hyperbeam_selection_process_id", &self.hyperbeam_selection_process_id)
             .field("hyperbeam_auto_fund", &self.hyperbeam_auto_fund_signer.is_some())
             .finish()
     }
@@ -59,6 +65,8 @@ impl Default for BundlerClient {
             _is_turbo: false,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -74,6 +82,8 @@ impl BundlerClient {
             _is_turbo: false,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -86,6 +96,8 @@ impl BundlerClient {
             _is_turbo: true,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -98,6 +110,8 @@ impl BundlerClient {
             _is_turbo: false,
             _is_hyperbeam: true,
             hyperbeam_upload_path: Some(hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -111,6 +125,16 @@ impl BundlerClient {
         self.hyperbeam_upload_path = Some(upload_path.to_string());
         self
     }
+    /// Sets the PermawebOS endpoint used to auto-select HyperBEAM bundler uploaders.
+    pub fn hyperbeam_selection_endpoint(mut self, endpoint: &str) -> Self {
+        self.hyperbeam_selection_endpoint = Some(endpoint.to_string());
+        self
+    }
+    /// Sets the PermawebOS staking process ID used to auto-select HyperBEAM bundler uploaders.
+    pub fn hyperbeam_selection_process_id(mut self, process_id: &str) -> Self {
+        self.hyperbeam_selection_process_id = Some(process_id.to_string());
+        self
+    }
     /// Enables HyperBEAM AO ledger auto-funding before upload.
     pub fn auto_fund(mut self, signer: ArweaveSigner) -> Self {
         self.hyperbeam_auto_fund_signer = Some(Arc::new(signer));
@@ -118,11 +142,13 @@ impl BundlerClient {
     }
     /// Builds the bundling client with the set configuration.
     pub fn build(self) -> Result<Self, Error> {
-        let _url = self
-            .clone()
-            .url
-            .ok_or_else(|| "url not provided".to_string())
-            .map_err(|e| anyhow!(e))?;
+        if !self._is_hyperbeam {
+            let _url = self
+                .clone()
+                .url
+                .ok_or_else(|| "url not provided".to_string())
+                .map_err(|e| anyhow!(e))?;
+        }
 
         // check turbo's payment url
         if self._is_turbo {
@@ -140,6 +166,8 @@ impl BundlerClient {
             _is_turbo: self._is_turbo,
             _is_hyperbeam: self._is_hyperbeam,
             hyperbeam_upload_path: self.hyperbeam_upload_path,
+            hyperbeam_selection_endpoint: self.hyperbeam_selection_endpoint,
+            hyperbeam_selection_process_id: self.hyperbeam_selection_process_id,
             hyperbeam_auto_fund_signer: self.hyperbeam_auto_fund_signer,
             http_client: Some(client),
         })
@@ -152,7 +180,17 @@ impl BundlerClient {
         if self._is_hyperbeam {
             let http_client =
                 self.http_client.ok_or("http client error").map_err(|e| anyhow!(e.to_string()))?;
-            let url = self.url.ok_or("url not provided").map_err(|e| anyhow!(e.to_string()))?;
+            let url = match self.url {
+                Some(url) => url,
+                None => {
+                    hyperbeam::select_bundler(
+                        http_client.clone(),
+                        self.hyperbeam_selection_endpoint.as_deref(),
+                        self.hyperbeam_selection_process_id.as_deref(),
+                    )
+                    .await?
+                }
+            };
 
             if let Some(signer) = self.hyperbeam_auto_fund_signer {
                 hb_funding::auto_fund_upload(
@@ -346,6 +384,13 @@ mod tests {
         assert_eq!(client.url.as_deref(), Some(DEFAULT_BUNDLER_URL));
         assert_eq!(client.payment_url, None);
         assert!(!client._is_turbo);
+    }
+
+    #[tokio::test]
+    async fn test_hyperbeam_client_builds_without_url() {
+        let client = BundlerClient::hyperbeam().build().unwrap();
+        assert_eq!(client.url, None);
+        assert!(client._is_hyperbeam);
     }
 
     #[tokio::test]

@@ -238,7 +238,6 @@ let signer = ArweaveSigner::from_jwk_file("wallet.json").unwrap();
 let tags = vec![Tag::new("Content-Type", "text/plain")];
 let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world hyperbeam".to_vec()).unwrap();
 let client = BundlerClient::hyperbeam()
-    .url("https://lapee.hyperzine.xyz")
     .auto_fund(signer)
     .build()
     .unwrap();

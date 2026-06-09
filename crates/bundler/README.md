@@ -33,6 +33,42 @@ let tx = client.send_transaction(dataitem).await.unwrap();
 println!("tx: {:?}", tx);
 ```
 
+### Send Transaction (HyperBEAM)
+
+`BundlerClient::hyperbeam()` auto-selects an active HyperBEAM uploader from the
+[PermawebOS bundlers network](https://ao.arweave.net/#/stake/bundle) when no uploader URL is set. It filters unusable entries and checks that the selected
+node has spendable AR before upload.
+
+```rust
+let signer = ArweaveSigner::from_jwk_file("wallet.json").unwrap();
+let tags = vec![Tag::new("Content-Type", "text/plain")];
+let dataitem = DataItem::build_and_sign(
+    &signer,
+    None,
+    None,
+    tags,
+    b"hello world hyperbeam".to_vec(),
+)
+.unwrap();
+
+let client = BundlerClient::hyperbeam()
+    .auto_fund(signer)
+    .build()
+    .unwrap();
+
+let tx = client.send_transaction(dataitem).await.unwrap();
+println!("tx: {:?}", tx);
+```
+
+To force a specific HyperBEAM uploader instead of auto-selection, set `.url(...)`:
+
+```rust
+let client = BundlerClient::hyperbeam()
+    .url("https://lapee.hyperzine.xyz")
+    .build()
+    .unwrap();
+```
+
 ### Send Transaction (Turbo)
 
 ```rust
