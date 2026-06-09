@@ -13,6 +13,7 @@ exclude.workspace = true
 ans104 = { path = "../ans104" }
 crypto = { path = "../crypto" }
 bundler = { path = "../bundler" }
+references = { path = "../references" }
 
 [lints]
 workspace = true

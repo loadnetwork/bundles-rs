@@ -12,9 +12,9 @@ use crypto::arweave::ArweaveSigner;
 use reqwest::{Client, ClientBuilder};
 use std::{fmt, sync::Arc};
 
-pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
+pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://up.arweave.net";
+pub(crate) const DEFAULT_TURBO_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
 pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io/v1";
-pub(crate) const OFFCHAIN_BUNDLER_URL: &str = "https://loaded-turbo-api.load.network/v1";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Clone)]
@@ -32,6 +32,10 @@ pub struct BundlerClient {
     pub(crate) _is_hyperbeam: bool,
     /// HyperBEAM bundler upload route.
     pub(crate) hyperbeam_upload_path: Option<String>,
+    /// PermawebOS endpoint used to discover active HyperBEAM bundler uploaders.
+    pub(crate) hyperbeam_selection_endpoint: Option<String>,
+    /// PermawebOS staking process ID used to discover active HyperBEAM bundler uploaders.
+    pub(crate) hyperbeam_selection_process_id: Option<String>,
     /// Arweave signer used to auto-fund HyperBEAM AO ledger credit.
     pub(crate) hyperbeam_auto_fund_signer: Option<Arc<ArweaveSigner>>,
 }
@@ -45,6 +49,8 @@ impl fmt::Debug for BundlerClient {
             .field("_is_turbo", &self._is_turbo)
             .field("_is_hyperbeam", &self._is_hyperbeam)
             .field("hyperbeam_upload_path", &self.hyperbeam_upload_path)
+            .field("hyperbeam_selection_endpoint", &self.hyperbeam_selection_endpoint)
+            .field("hyperbeam_selection_process_id", &self.hyperbeam_selection_process_id)
             .field("hyperbeam_auto_fund", &self.hyperbeam_auto_fund_signer.is_some())
             .finish()
     }
@@ -55,10 +61,12 @@ impl Default for BundlerClient {
         Self {
             url: Some(DEFAULT_BUNDLER_URL.to_string()),
             http_client: None,
-            payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
-            _is_turbo: true,
+            payment_url: None,
+            _is_turbo: false,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -74,26 +82,22 @@ impl BundlerClient {
             _is_turbo: false,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
     /// Return a BundlerClient instance with Turbo configuration
-    /// Given the current design, turbo is the default.
     pub fn turbo() -> Self {
-        BundlerClient::default()
-    }
-    /// Return a BundlerClient instance with Load S3 offchain
-    /// bundler configuration (Turbo compliant) - in this
-    /// release, only /v1/tx/:token method (send_transaction)
-    /// is supported in the offchain bundler
-    pub fn offchain() -> Self {
         Self {
-            url: Some(OFFCHAIN_BUNDLER_URL.to_string()),
-            payment_url: None,
+            url: Some(DEFAULT_TURBO_BUNDLER_URL.to_string()),
             http_client: None,
-            _is_turbo: false,
+            payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
+            _is_turbo: true,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -106,6 +110,8 @@ impl BundlerClient {
             _is_turbo: false,
             _is_hyperbeam: true,
             hyperbeam_upload_path: Some(hyperbeam::DEFAULT_HYPERBEAM_UPLOAD_PATH.to_string()),
+            hyperbeam_selection_endpoint: None,
+            hyperbeam_selection_process_id: None,
             hyperbeam_auto_fund_signer: None,
         }
     }
@@ -119,6 +125,16 @@ impl BundlerClient {
         self.hyperbeam_upload_path = Some(upload_path.to_string());
         self
     }
+    /// Sets the PermawebOS endpoint used to auto-select HyperBEAM bundler uploaders.
+    pub fn hyperbeam_selection_endpoint(mut self, endpoint: &str) -> Self {
+        self.hyperbeam_selection_endpoint = Some(endpoint.to_string());
+        self
+    }
+    /// Sets the PermawebOS staking process ID used to auto-select HyperBEAM bundler uploaders.
+    pub fn hyperbeam_selection_process_id(mut self, process_id: &str) -> Self {
+        self.hyperbeam_selection_process_id = Some(process_id.to_string());
+        self
+    }
     /// Enables HyperBEAM AO ledger auto-funding before upload.
     pub fn auto_fund(mut self, signer: ArweaveSigner) -> Self {
         self.hyperbeam_auto_fund_signer = Some(Arc::new(signer));
@@ -126,11 +142,13 @@ impl BundlerClient {
     }
     /// Builds the bundling client with the set configuration.
     pub fn build(self) -> Result<Self, Error> {
-        let _url = self
-            .clone()
-            .url
-            .ok_or_else(|| "url not provided".to_string())
-            .map_err(|e| anyhow!(e))?;
+        if !self._is_hyperbeam {
+            let _url = self
+                .clone()
+                .url
+                .ok_or_else(|| "url not provided".to_string())
+                .map_err(|e| anyhow!(e))?;
+        }
 
         // check turbo's payment url
         if self._is_turbo {
@@ -148,6 +166,8 @@ impl BundlerClient {
             _is_turbo: self._is_turbo,
             _is_hyperbeam: self._is_hyperbeam,
             hyperbeam_upload_path: self.hyperbeam_upload_path,
+            hyperbeam_selection_endpoint: self.hyperbeam_selection_endpoint,
+            hyperbeam_selection_process_id: self.hyperbeam_selection_process_id,
             hyperbeam_auto_fund_signer: self.hyperbeam_auto_fund_signer,
             http_client: Some(client),
         })
@@ -160,7 +180,17 @@ impl BundlerClient {
         if self._is_hyperbeam {
             let http_client =
                 self.http_client.ok_or("http client error").map_err(|e| anyhow!(e.to_string()))?;
-            let url = self.url.ok_or("url not provided").map_err(|e| anyhow!(e.to_string()))?;
+            let url = match self.url {
+                Some(url) => url,
+                None => {
+                    hyperbeam::select_bundler(
+                        http_client.clone(),
+                        self.hyperbeam_selection_endpoint.as_deref(),
+                        self.hyperbeam_selection_process_id.as_deref(),
+                    )
+                    .await?
+                }
+            };
 
             if let Some(signer) = self.hyperbeam_auto_fund_signer {
                 hb_funding::auto_fund_upload(
@@ -316,6 +346,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_send_transaction_arweave_up() {
+        let client = BundlerClient::new().url("https://up.arweave.net").build().unwrap();
+        let signer = ArweaveSigner::random().unwrap();
+        let tags = vec![Tag::new("content-type", "text/plain")];
+        let dataitem =
+            DataItem::build_and_sign(&signer, None, None, tags, "hello world".as_bytes().to_vec())
+                .unwrap();
+
+        let tx = client.send_transaction(dataitem).await.unwrap();
+        println!("tx: {:?}", tx);
+        assert_eq!(tx.id.len(), 43);
+    }
+
+    #[tokio::test]
     async fn test_send_transaction_solana_turbo() {
         let client = BundlerClient::turbo().build().unwrap();
         let signer = SolanaSigner::random();
@@ -335,30 +379,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_transaction_solana_offchain() {
-        let client = BundlerClient::offchain().build().unwrap();
-        let signer = ArweaveSigner::random().unwrap();
-        let tags = vec![Tag::new("content-type", "text/plain")];
-        let dataitem = DataItem::build_and_sign(
-            &signer,
-            None,
-            None,
-            tags,
-            "hello world offchain".as_bytes().to_vec(),
-        )
-        .unwrap();
-
-        let tx = client.send_transaction(dataitem).await.unwrap();
-        println!("tx: {:?}", tx);
-        assert_eq!(tx.id.len(), 43);
+    async fn test_default_client() {
+        let client = BundlerClient::default().build().unwrap();
+        assert_eq!(client.url.as_deref(), Some(DEFAULT_BUNDLER_URL));
+        assert_eq!(client.payment_url, None);
+        assert!(!client._is_turbo);
     }
 
     #[tokio::test]
-    async fn test_default_and_info() {
-        let client = BundlerClient::default().build().unwrap();
-        let info = client.info().await.unwrap();
-        println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net/");
+    async fn test_hyperbeam_client_builds_without_url() {
+        let client = BundlerClient::hyperbeam().build().unwrap();
+        assert_eq!(client.url, None);
+        assert!(client._is_hyperbeam);
     }
 
     #[tokio::test]
@@ -366,7 +398,7 @@ mod tests {
         let client = BundlerClient::turbo().build().unwrap();
         let info = client.info().await.unwrap();
         println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net/");
+        assert_eq!(info.gateway, "https://turbo-gateway.com/");
     }
 
     #[tokio::test]

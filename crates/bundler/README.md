@@ -1,7 +1,5 @@
 ## About
-`bundler` crate is Rust SDK to interact with Arweave (ANS-104) bundling services. This crate is designed to be backward compatible with existing bundling services and fine tuned for [Turbo](https://turbo.ardrive.io/)
-
-> The offchain bundling service (Load S3), introduced in SDK v3, only supports the `send_transaction()` method. Its Fast Finality Indexes resolve only DataItems signed with Arweave key. Full features compatibility is WIP.
+`bundler` crate is Rust SDK to interact with Arweave (ANS-104) bundling services. This crate is designed to be backward compatible with existing legacy bundlers. for HyperBEAM bundlers, check this [example](../../examples/upload/src/bin/hyperbeam.rs).
 
 ## Installation
 
@@ -18,21 +16,57 @@ bundler = { git = "https://github.com/permaweb/bundles-rs", branch = "main" }
 ```rust
 use bundles_rs::bundler::BundlerClient;
 use bundles_rs::ans104::{data_item::DataItem, tags::Tag};
-use bundles_rs::crypto::solana::SolanaSigner;
+use bundles_rs::crypto::arweave::ArweaveSigner;
 ```
 
 ## Usage Example
 
-### Send Transaction (Solana)
+### Send Transaction
 
 ```rust
-let client = BundlerClient::new().url("https://upload.ardrive.io").build().unwrap();
-let signer = SolanaSigner::random();
+let client = BundlerClient::default().build().unwrap();
+let signer = ArweaveSigner::random().unwrap();
 let tags = vec![Tag::new("content-type", "text/plain")];
 let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world".to_vec()).unwrap();
 
 let tx = client.send_transaction(dataitem).await.unwrap();
 println!("tx: {:?}", tx);
+```
+
+### Send Transaction (HyperBEAM)
+
+`BundlerClient::hyperbeam()` auto-selects an active HyperBEAM uploader from the
+[PermawebOS bundlers network](https://ao.arweave.net/#/stake/bundle) when no uploader URL is set. It filters unusable entries and checks that the selected
+node has spendable AR before upload.
+
+```rust
+let signer = ArweaveSigner::from_jwk_file("wallet.json").unwrap();
+let tags = vec![Tag::new("Content-Type", "text/plain")];
+let dataitem = DataItem::build_and_sign(
+    &signer,
+    None,
+    None,
+    tags,
+    b"hello world hyperbeam".to_vec(),
+)
+.unwrap();
+
+let client = BundlerClient::hyperbeam()
+    .auto_fund(signer)
+    .build()
+    .unwrap();
+
+let tx = client.send_transaction(dataitem).await.unwrap();
+println!("tx: {:?}", tx);
+```
+
+To force a specific HyperBEAM uploader instead of auto-selection, set `.url(...)`:
+
+```rust
+let client = BundlerClient::hyperbeam()
+    .url("https://lapee.hyperzine.xyz")
+    .build()
+    .unwrap();
 ```
 
 ### Send Transaction (Turbo)
@@ -45,27 +79,6 @@ let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world
 
 let tx = client.send_transaction(dataitem).await.unwrap();
 println!("tx: {:?}", tx);
-```
-
-### Send Transaction (Load S3 - offchain)
-
-```rust
-let client = BundlerClient::offchain().build().unwrap();
-// the data_caches/fast_finality_indexes only support AR signatures for now
-let signer = ArweaveSigner::random();
-let tags = vec![Tag::new("content-type", "text/plain")];
-let dataitem = DataItem::build_and_sign(&signer, None, None, tags, b"hello world LS3".to_vec()).unwrap();
-
-let tx = client.send_transaction(dataitem).await.unwrap();
-println!("tx: {:?}", tx);
-```
-
-### Get Default Client Info
-
-```rust
-let client = BundlerClient::default().build().unwrap();
-let info = client.info().await.unwrap();
-println!("{:?}", info);
 ```
 
 ### Get Turbo Client Info
@@ -104,6 +117,3 @@ println!("{:?}", status);
 
 * upload api: https://upload.ardrive.io/api-docs
 * payment api: https://payment.ardrive.io/api-docs
-
-## Load S3 Upload Service API References:
-* loaded-turbo-api: https://github.com/loadnetwork/loaded-turbo-api
