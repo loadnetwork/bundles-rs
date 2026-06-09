@@ -14,21 +14,21 @@ pub struct SendTransactionResponse {
     /// Creation unix timestamp
     pub timestamp: Option<u64>,
     /// DataItem fee in Arweave's winc unit
-    pub winc: String,
+    pub winc: Option<String>,
     /// Bundle version
     pub version: Option<String>,
     /// Bundling service Arweave height deadline to settle the DataItem
     pub deadline_height: Option<u64>,
     /// Bundling service optimistic caching gateways
-    pub data_caches: Vec<String>,
+    pub data_caches: Option<Vec<String>>,
     /// Bundling service indexing gateways
-    pub fast_finality_indexes: Vec<String>,
+    pub fast_finality_indexes: Option<Vec<String>>,
     /// Bundler public key
     pub public: Option<String>,
     /// Signed Dataitem signature
     pub signature: Option<String>,
     /// DataItem owner, signer
-    pub owner: String,
+    pub owner: Option<String>,
 }
 
 /// Response of the /info endpoint of the bundling service.

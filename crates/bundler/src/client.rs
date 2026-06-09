@@ -12,9 +12,9 @@ use crypto::arweave::ArweaveSigner;
 use reqwest::{Client, ClientBuilder};
 use std::{fmt, sync::Arc};
 
-pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
+pub(crate) const DEFAULT_BUNDLER_URL: &str = "https://up.arweave.net";
+pub(crate) const DEFAULT_TURBO_BUNDLER_URL: &str = "https://upload.ardrive.io/v1";
 pub(crate) const DEFAULT_TURBO_PAYMENT_URL: &str = "https://payment.ardrive.io/v1";
-pub(crate) const OFFCHAIN_BUNDLER_URL: &str = "https://loaded-turbo-api.load.network/v1";
 
 /// HTTP client for uploading data items to Arweave bundler endpoints.
 #[derive(Clone)]
@@ -55,8 +55,8 @@ impl Default for BundlerClient {
         Self {
             url: Some(DEFAULT_BUNDLER_URL.to_string()),
             http_client: None,
-            payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
-            _is_turbo: true,
+            payment_url: None,
+            _is_turbo: false,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
             hyperbeam_auto_fund_signer: None,
@@ -78,20 +78,12 @@ impl BundlerClient {
         }
     }
     /// Return a BundlerClient instance with Turbo configuration
-    /// Given the current design, turbo is the default.
     pub fn turbo() -> Self {
-        BundlerClient::default()
-    }
-    /// Return a BundlerClient instance with Load S3 offchain
-    /// bundler configuration (Turbo compliant) - in this
-    /// release, only /v1/tx/:token method (send_transaction)
-    /// is supported in the offchain bundler
-    pub fn offchain() -> Self {
         Self {
-            url: Some(OFFCHAIN_BUNDLER_URL.to_string()),
-            payment_url: None,
+            url: Some(DEFAULT_TURBO_BUNDLER_URL.to_string()),
             http_client: None,
-            _is_turbo: false,
+            payment_url: Some(DEFAULT_TURBO_PAYMENT_URL.to_string()),
+            _is_turbo: true,
             _is_hyperbeam: false,
             hyperbeam_upload_path: None,
             hyperbeam_auto_fund_signer: None,
@@ -316,6 +308,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_send_transaction_arweave_up() {
+        let client = BundlerClient::new().url("https://up.arweave.net").build().unwrap();
+        let signer = ArweaveSigner::random().unwrap();
+        let tags = vec![Tag::new("content-type", "text/plain")];
+        let dataitem =
+            DataItem::build_and_sign(&signer, None, None, tags, "hello world".as_bytes().to_vec())
+                .unwrap();
+
+        let tx = client.send_transaction(dataitem).await.unwrap();
+        println!("tx: {:?}", tx);
+        assert_eq!(tx.id.len(), 43);
+    }
+
+    #[tokio::test]
     async fn test_send_transaction_solana_turbo() {
         let client = BundlerClient::turbo().build().unwrap();
         let signer = SolanaSigner::random();
@@ -335,30 +341,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_transaction_solana_offchain() {
-        let client = BundlerClient::offchain().build().unwrap();
-        let signer = ArweaveSigner::random().unwrap();
-        let tags = vec![Tag::new("content-type", "text/plain")];
-        let dataitem = DataItem::build_and_sign(
-            &signer,
-            None,
-            None,
-            tags,
-            "hello world offchain".as_bytes().to_vec(),
-        )
-        .unwrap();
-
-        let tx = client.send_transaction(dataitem).await.unwrap();
-        println!("tx: {:?}", tx);
-        assert_eq!(tx.id.len(), 43);
-    }
-
-    #[tokio::test]
-    async fn test_default_and_info() {
+    async fn test_default_client() {
         let client = BundlerClient::default().build().unwrap();
-        let info = client.info().await.unwrap();
-        println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net/");
+        assert_eq!(client.url.as_deref(), Some(DEFAULT_BUNDLER_URL));
+        assert_eq!(client.payment_url, None);
+        assert!(!client._is_turbo);
     }
 
     #[tokio::test]
@@ -366,7 +353,7 @@ mod tests {
         let client = BundlerClient::turbo().build().unwrap();
         let info = client.info().await.unwrap();
         println!("{:?}", info);
-        assert_eq!(info.gateway, "https://arweave.net/");
+        assert_eq!(info.gateway, "https://turbo-gateway.com/");
     }
 
     #[tokio::test]
