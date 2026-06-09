@@ -2,8 +2,7 @@ use ans104::data_item::DataItem;
 use anyhow::{Error, anyhow};
 use rand::seq::SliceRandom;
 use reqwest::Client;
-use serde_json::Map;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::api::SendTransactionResponse;
 

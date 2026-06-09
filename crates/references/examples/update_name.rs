@@ -14,10 +14,8 @@ async fn main() -> Result<()> {
     let signer = ArweaveSigner::from_jwk_file(&wallet)
         .with_context(|| format!("failed to load wallet from {wallet}"))?;
     let client = ReferenceClient::new();
-    let resolved = client
-        .get_name(&name)
-        .await?
-        .with_context(|| format!("name not found: {name}"))?;
+    let resolved =
+        client.get_name(&name).await?.with_context(|| format!("name not found: {name}"))?;
 
     println!("name={}", resolved.name);
     println!("reference_id={}", resolved.reference_id);
