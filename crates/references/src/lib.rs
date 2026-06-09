@@ -18,14 +18,14 @@ pub const DEVICE: &str = "reference@1.0";
 /// Default Arweave gateway used for GraphQL reads.
 pub const DEFAULT_GATEWAY: &str = "https://arweave.net";
 
-/// Trusted phase-2 bootstrap publisher used by `names-sdk`.
+/// Trusted phase-2 bootstrap publisher used by `@permaweb/references`.
 ///
 /// This matters for namespace and wallet-wide discovery flows where reference inits may be
 /// published by a trusted bootstrap process on behalf of an authority. Direct reference
 /// resolution does not require trusting this address.
 pub const PHASE2_BOOTSTRAP_OWNER: &str = "uAaRGha_a1ni_VjLf9Be2SFB7NJw1PWnjevdfeuJ_7c";
 
-/// Default phase-2 namespace root reference from `names-sdk`.
+/// Default phase-2 namespace root reference from `@permaweb/references`.
 pub const PHASE2_NAMESPACE: &str = "w0eqd43OMzzXr-5yhFC-LkgifQqih8YEPb4mLt6VSZo";
 
 const MAX_NAMESPACE_REFERENCE_DEPTH: usize = 10;
