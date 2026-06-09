@@ -1,5 +1,5 @@
 [package]
-name = "bundles_rs"
+name = "references"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,9 +11,16 @@ exclude.workspace = true
 
 [dependencies]
 ans104 = { path = "../ans104" }
-crypto = { path = "../crypto" }
 bundler = { path = "../bundler" }
-references = { path = "../references" }
+crypto = { path = "../crypto" }
+
+anyhow.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
 
 [lints]
 workspace = true

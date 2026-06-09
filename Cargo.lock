@@ -595,6 +595,7 @@ dependencies = [
  "ans104",
  "bundler",
  "crypto",
+ "references",
 ]
 
 [[package]]
@@ -2488,6 +2489,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d04b7d0ee6b4a0207a0a7adb104d23ecb0b47d6beae7152d0fa34b692b29fd6"
 dependencies = [
  "bitflags 2.9.1",
+]
+
+[[package]]
+name = "references"
+version = "0.4.0"
+dependencies = [
+ "ans104",
+ "anyhow",
+ "bundler",
+ "crypto",
+ "reqwest 0.12.22",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
